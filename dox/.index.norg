@@ -1,0 +1,12 @@
+@document.meta
+title: .index
+description: the index file for the documentation of `cadence`
+authors: canoe
+created: 22.04.2024
+updated: 22.04.2024
+version: 1.1.1
+@end
+
+* brainstorm
+
+  I want the design of this to be as simple as possible, so heavily rely on external tools (like vim), as per the unix philosophy

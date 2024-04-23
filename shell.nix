@@ -7,7 +7,7 @@ pkgs.mkShellNoCC {
     packages = with pkgs; [
         gcc
         ncurses
-        clang_15
+        clang
         boost183
     ];
 
