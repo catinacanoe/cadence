@@ -3,10 +3,42 @@ title: .index
 description: the index file for the documentation of `cadence`
 authors: canoe
 created: 22.04.2024
-updated: 22.04.2024
+updated: 23.04.2024
 version: 1.1.1
 @end
 
-* brainstorm
+* Design Brainstorm
 
   I want the design of this to be as simple as possible, so heavily rely on external tools (like vim), as per the unix philosophy
+
+  For storing the data, I will opt for some c++ hashmap save to file library. Previously I've tried parsing it from my notes database, but I find that this takes a lot of time, and doesn't provide any significant benefits over this simpler solution.
+
+  Recurring tasks: this is an interesting question. How do you store and load tasks that repeat every day, week, etc. If it is precalculated on data loading, you have to choose how far into the future to create these repeating tasks, and then somehow load them in if the user scrolls farther into the future. On the other hand, we could have the ui query the database with a specific time range, and then we would calculate where in that time range the repeating tasks exist, however, this is not very optimal, as that would have to be done per frame essentially. *Proposed solution:* ui requests a time range of tasks. Then, the database will see if it has precalculated all recurring tasks for that range. If yes, it just returns them, if not, it calculates them, returns them, and saves them incase the ui requests them again.
+
+** Database
+
+   split into recurring tasks, and oneshot tasks (both lists sorted by starting time)
+
+*** Block
+
+    We will call the time blocks as a whole designated to a certain task "Blocks"
+
+**** fields
+
+     - id: not needed if using 1d array
+     - link: string containing either a file path or http link or a shell command that should be run on open
+     - name: just the name of the task (should be short & consise)
+     - description: anything that couldn't be fit into the name (in norg file format, opened in vim)
+     - color: the color that the task should have
+     - collapsible: boolean. if true, this task will be collapsed to the smallest size in ui (otherwise it will be to scale). stuff like school and sleep that is ingrained into routine can be treated like this.
+
+     - recur_days: 1x7 array of booleans, index 0 being monday. Every day that is true means the task recurs on this day. If they are all false, this task is not recurring.
+
+     - t_start: starting time of the block (inclusive)
+     - t_end: ending time of the block (exclusive)
+
+** UI
+
+*** Integrity test
+
+    Every time it recieves a series of blocks, it should check that there are no overlapping ones, and if there are it should error out.
