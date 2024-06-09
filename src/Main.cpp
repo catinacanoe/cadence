@@ -1,8 +1,15 @@
 #include <iostream>
 #include <ncurses.h>
-#include <curses.h>
+#include "Block.h"
+#include <memory>
 
 int main(int argc, char** argv) {
+
+
+    std::unique_ptr<Block> test_block(new Block((std::filesystem::path) "/home/canoe/repos/cadence/run/oneshot/Physics HW.2002.norg"));
+
+    return 0;
+
     initscr(); // sets up mem and clears screen
     curs_set(0); // hides cursor
     cbreak(); // ^C exits program

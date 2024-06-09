@@ -3,11 +3,13 @@ title: .index
 description: the index file for the documentation of `cadence`
 authors: canoe
 created: 22.04.2024
-updated: 23.04.2024
+updated: 03.06.2024
 version: 1.1.1
 @end
 
 * Design Brainstorm
+
+  Also be able to split tasks up into quadrants
 
   I want the design of this to be as simple as possible, so heavily rely on external tools (like vim), as per the unix philosophy
 
@@ -22,13 +24,36 @@ version: 1.1.1
 *** Block
 
     We will call the time blocks as a whole designated to a certain task "Blocks"
+    Should be able to export to and construct from a one line string (for saving into file)
+
+**** access
+
+     accessor function will require a range of days to get tasks from
+
+**** saving
+
+     will be saved to file: \<title\>.\<id# (padded to 4 digits)\>.norg
+     @code norg
+     @document.meta block will contain:
+     color: one of the 8 standard colors
+     link: can be a number task id, file path, http link
+     collapse (if line is omitted, task is not collapsible, otherwise it is)
+
+     @code lua time block will contain:
+     recur = "mtwtfss" --each capitalized letter is a day where it recurs. if line is ommitted, it is the same as putting all lowercase letters (not recurring)
+     start = 13:00~13.05.2024 --the starting time of the task HH:MM~dd.mm.yyyy
+     end = --can be in +HH:MM format (the block will be that long)
+           --or HH:MM~dd.... where any ommited info AT THE END, will be filled in from the start time
+
+     description will be below
+     @end
 
 **** fields
 
-     - id: not needed if using 1d array
-     - link: string containing either a file path or http link or a shell command that should be run on open
-     - name: just the name of the task (should be short & consise)
-     - description: anything that couldn't be fit into the name (in norg file format, opened in vim)
+     - link: string containing either a file path or http link or the id of a task or a shell command that should be run on open
+     - id: integer on 0000-9999. used as a postfix for description file. ID must be unique identifier
+     - title: just the name of the task (should be short & consise)
+     - description: anything that couldn't be fit into the name (separate .norg file named by the task name and a random 3 digit id, opened in vim)
      - color: the color that the task should have
      - collapsible: boolean. if true, this task will be collapsed to the smallest size in ui (otherwise it will be to scale). stuff like school and sleep that is ingrained into routine can be treated like this.
 
@@ -42,3 +67,6 @@ version: 1.1.1
 *** Integrity test
 
     Every time it recieves a series of blocks, it should check that there are no overlapping ones, and if there are it should error out.
+
+*** Design
+

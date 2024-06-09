@@ -1,0 +1,13 @@
+@document.meta
+color: blue
+link: 0429
+collapse
+@end
+
+@code lua time
+recur = "Mtwtfss"
+start = 13:00~13.05.2024
+end = +2:00
+@end
+
+During this time I would like to work on my physics homework :)))
