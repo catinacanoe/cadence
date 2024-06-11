@@ -4,9 +4,9 @@
 #include <memory>
 
 int main(int argc, char** argv) {
-
-
-    std::unique_ptr<Block> test_block(new Block((std::filesystem::path) "/home/canoe/repos/cadence/run/oneshot/Physics HW.2002.norg"));
+    std::unique_ptr<Block> test_block(new Block((std::filesystem::path) "/home/canoe/repos/cadence/run/lol.2745.norg"));
+    test_block->dump_info();
+    test_block->save_to_file();
 
     return 0;
 

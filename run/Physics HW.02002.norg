@@ -1,13 +1,11 @@
 @document.meta
+link: https://fuhsd.schoology.com/course/7058103599/materials
 color: blue
-link: 0429
-collapse
 @end
 
 @code lua time
-recur = "Mtwtfss"
 start = 13:00~13.05.2024
-end = +2:00
+end   = 15:00~13.05.2024
 @end
 
 During this time I would like to work on my physics homework :)))

@@ -3,7 +3,7 @@ title: .index
 description: the index file for the documentation of `cadence`
 authors: canoe
 created: 22.04.2024
-updated: 03.06.2024
+updated: 10.06.2024
 version: 1.1.1
 @end
 
@@ -55,7 +55,8 @@ version: 1.1.1
      - title: just the name of the task (should be short & consise)
      - description: anything that couldn't be fit into the name (separate .norg file named by the task name and a random 3 digit id, opened in vim)
      - color: the color that the task should have
-     - collapsible: boolean. if true, this task will be collapsed to the smallest size in ui (otherwise it will be to scale). stuff like school and sleep that is ingrained into routine can be treated like this.
+     - collapsible: boolean. if true, this task will be collapsed to the smallest size in ui and greyed out (otherwise it will be to scale). stuff like school and sleep that is ingrained into routine can be treated like this.
+     - important: whether it should show up on the calendar
 
      - recur_days: 1x7 array of booleans, index 0 being monday. Every day that is true means the task recurs on this day. If they are all false, this task is not recurring.
 
@@ -68,5 +69,49 @@ version: 1.1.1
 
     Every time it recieves a series of blocks, it should check that there are no overlapping ones, and if there are it should error out.
 
+*** Elements
+
+    Each day is a column and there is a calendar in the bottom right for bigger navigation / overview
+
 *** Design
 
+    should dynamically adjust column and spacing width in order to not have empty space
+
+    ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+    ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+    █████Today       Sun 09.06     Tomorrow    Mon 10.06                 Tue 11.06                 Wed 11.06                 Thu 11.06█████
+    █████┌06:00──────────────┐     ┌06:00──────────────┐     ┌06:00──────────────┐     ┌06:00──────────────┐     ┌06:00──────────────┐█████
+    █████└────────────shower─┘     └────────────shower─┘     └────────────shower─┘     └────────────shower─┘     └────────────shower─┘█████
+    █████┌06:30──────────────┐     ┌06:30──────────────┐     ┌06:30──────────────┐     ┌06:30──────────────┐     ┌06:30──────────────┐█████
+    █████│         breakfast │     │         breakfast │     │         breakfast │     │         breakfast │     │         breakfast │█████
+    █████└───────────────────┘     └───────────────────┘     └───────────────────┘     └───────────────────┘     └───────────────────┘█████
+    █████┌07:15──────────────┐     ┌07:15──────────────┐     ┌07:15──────────────┐     ┌07:15──────────────┐     ┌07:15──────────────┐█████
+    █████└──────brush & wash─┘     └──────brush & wash─┘     └──────brush & wash─┘     └──────brush & wash─┘     └──────brush & wash─┘█████
+    █████┌07:30──────────────┐     ┌07:30──────────────┐     ┌07:30──────────────┐     ┌07:30──────────────┐     ┌07:30──────────────┐█████
+    █████│                   │     └────────misc tasks─┘     └────────misc tasks─┘     └────────misc tasks─┘     └────────misc tasks─┘█████
+    █████│                   │     ┌08:00──────────────┐     ┌08:00──────────────┐     ┌08:00──────────────┐     ┌08:00──────────────┐█████
+    █████│                   │     └─────────────dress─┘     └─────────────dress─┘     └─────────────dress─┘     └─────────────dress─┘█████
+    █████│                   │     ┌08:15──────────────.     ┌08:15──────────────.     ┌08:15──────────────.     ┌08:15──────────────.█████
+    █████│                   │     └────────────school─┘     └────────────school─┘     └────────────school─┘     └────────────school─┘█████
+    █████│  various projects │     ┌16:00──────────────┐     ┌16:00──────────────┐     ┌16:00──────────────┐     ┌16:00──────────────┐█████
+    █████│                   │     │            shower │     │            shower │     │            shower │     │            shower │█████
+    █████│                   │     └───────────────────┘     └───────────────────┘     └───────────────────┘     └───────────────────┘█████
+    █████│                   │     ┌16:30──────────────┐     ┌16:30──────────────┐     ┌16:30──────────────┐     ┌16:30──────────────┐█████
+    █████│                   │     │       hw and proj │     │       hw and proj │     │       hw and proj │     │       hw and proj │█████
+    █████│                   │     │                   │     │                   │     │                   │     │                   │█████
+    █████│                   │     └───────────────────┘     └───────────────────┘     └───────────────────┘     └───────────────────┘█████
+    █████└───────────────────┘     ┌18:15──────────────┐     ┌18:15──────────────┐     ┌18:15──────────────┐     ┌18:15──────────────┐█████
+    █████┌19:00──────────────┐     │          work out │     │          work out │     │          work out │     │          work out │█████
+    █████└──────evening walk─┘     └───────────────────┘     └───────────────────┘     └───────────────────┘     └───────────────────┘█████
+    █████┌19:30──────────────┐     ┌19:30──────────────┐     ┌19:30──────────────┐     ┌19:30──────────────┐     ┌19:30──────────────┐█████
+    █████└────────────shower─┘     └────────────shower─┘     └────────────shower─┘     └────────────shower─┘     └────────────shower─┘█████
+    █████┌20:00──────────────┐     ┌20:00──────────────┐     ┌20:00──────────────┐     ┌20:00──────────                               █████
+    █████│            dinner │     │            dinner │     │            dinner │     │            din ┌──M───T───W───T───F───S───S─┐█████
+    █████└───────────────────┘     └───────────────────┘     └───────────────────┘     └─────────────── │                      1   2 │█████
+    █████┌21:00──────────────┐     ┌21:00──────────────┐     ┌21:00──────────────┐     ┌21:00────────── │  3   4   5   6   7   8  *9 │█████
+    █████│      brush & wash │     │      brush & wash │     │      brush & wash │     │      brush & w │ 10  11  12  13  14  15  16 │█████
+    █████└───────────────────┘     └───────────────────┘     └───────────────────┘     └─────────────── │ 17  18  19  20  21  22  23 │█████
+    █████┌21:30─────────22:00┐     ┌21:30─────────22:00┐     ┌21:30─────────22:00┐     ┌21:30─────────2 │ 24  25  26  27  28  29  30 │█████
+    █████└────journal & read─┘     └────journal & read─┘     └────journal & read─┘     └────journal & r └─Calendar─────────June.2024─┘█████
+    ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+    ███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
