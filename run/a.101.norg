@@ -1,0 +1,4 @@
+@code lua time
+start = 16:00~03.05.2020
+duration = 0:01
+@end

@@ -1,4 +1,5 @@
 #pragma once
+
 #include <vector>
 #include <filesystem>
 #include <boost/algorithm/string/trim.hpp>
@@ -9,10 +10,12 @@
 class Block {
 private:
     std::string title; // the title of the task (brief blurb in the ui)
+    std::string error_str; // the intro to all errors
     
     const int field_count = 7; // the number of fields
     bool modified[7]; // keeping track of which fields have been modified
-    enum en_fields { FLD_TITLE, FLD_LINK, FLD_COLOR, FLD_COLLAPSIBLE, FLD_IMPORTANT, FLD_START, FLD_END };
+    enum en_fields { FLD_TITLE, FLD_LINK, FLD_COLOR, FLD_COLLAPSIBLE, FLD_IMPORTANT,
+                     FLD_START, FLD_DURATION };
     
     enum en_link_type { LINK_NA, LINK_FILE, LINK_HTTP, LINK_TASK };
     std::string link; // can be "", a file path, http link, or an id of a task
@@ -24,7 +27,8 @@ private:
                // otherwise it should have a groupid of zero
 
     int color; // 0-7 corresponding to the color the task should have in ui
-    const std::string color_names[8] = { "white", "red", "green", "yellow", "blue", "purple", "aqua", "gray" };
+    const std::string color_names[8] = { "white", "red", "green", "yellow",
+                                         "blue", "purple", "aqua", "gray" };
 
     bool collapsible; // whether the task should be collapsed to a small size in ui
                       // (even if it has a long duration)
@@ -32,9 +36,9 @@ private:
     bool important; // whether or not the task is important (highlighted in ui)
 
     struct tm t_start;
-    struct tm t_end; // the start and end times of this block
+    time_t duration;
+
     const char *date_format = "%H:%M~%d.%m.%Y";
-    char date_buffer[17];
 
     std::filesystem::path source_file; // the save file containing the fields
 
@@ -60,16 +64,50 @@ private:
                     std::string contents,
                     std::string error); // initialize a field
     
+    void title_integrity(std::string val) const; // the below functions throw error
+    void t_start_integrity(struct tm val) const; // if the given field value is invalid
+    void duration_integrity(time_t val) const;
+    void id_integrity(int val) const;
+    void group_integrity(int val) const;
+    void color_integrity(int val) const;
+    void source_file_integrity(std::filesystem::path val) const;
 public:
     Block(std::filesystem::path savefile);
+    Block(const Block& other);
 
-    void dump_info(); // just a debug function
+    void dump_info() const; // just a debug function
 
     void save_to_file(); // if the current fields don't match the savefile, update it
-
-    void integrity_check(); // check that the field values make sense
     
-    std::string get_t_start_str(); // start time as a formatted date string
-    std::string get_t_end_str(); // start time as a formatted date string
-    std::string get_color_str(); // color in the string name
+    std::string get_t_start_str() const; // start time as a formatted date string
+    std::string get_duration_str() const; // start time as a formatted date string
+    std::string get_color_str() const; // color in the string name
+    std::string get_source_file_str() const; // the source file string
+    
+    struct tm get_t_start() const;
+    time_t get_time_t_start() const;
+    int get_id() const;
+    std::string get_title() const;
+    
+    void integrity_check() const; // check that all field values make sense
+    
+    Block& operator=(const Block& other) {
+        if (this != &other) {
+            title = other.title;
+            error_str = other.error_str;
+            link = other.link;
+            link_type = other.link_type;
+            id = other.id;
+            group = other.group;
+            color = other.color;
+            collapsible = other.collapsible;
+            important = other.important;
+            t_start = other.t_start;
+            duration = other.duration;
+            source_file = other.source_file;
+
+            for (int i = 0; i < field_count; i++) modified[i] = other.modified[i];
+        }
+        return *this;
+    }
 };

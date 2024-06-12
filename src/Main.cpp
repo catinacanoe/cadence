@@ -1,12 +1,20 @@
+#include "Block.h"
+#include "Database.h"
+#include "Week.h"
+
 #include <iostream>
 #include <ncurses.h>
-#include "Block.h"
 #include <memory>
+#include <vector>
+
+time_t day_start = 6 * 60 * 60; // these two will be sourced from config file in the future
+time_t day_end = 22 * 60 * 60;
 
 int main(int argc, char** argv) {
-    std::unique_ptr<Block> test_block(new Block((std::filesystem::path) "/home/canoe/repos/cadence/run/lol.2745.norg"));
-    test_block->dump_info();
-    test_block->save_to_file();
+    Database database = Database((std::filesystem::path) "/home/canoe/repos/cadence/run/");
+    database.dump_info();
+     
+    Week week = Week(&database, today, 19, 5);
 
     return 0;
 

@@ -1,14 +1,16 @@
 #include "Block.h"
 
 Block::Block(std::filesystem::path savefile) {
+    source_file_integrity(savefile);
+
     std::ifstream file;
     file.open(savefile);
 
     if (!file.is_open())
         throw std::runtime_error("unable to open block save file: " + savefile.string());
 
-    init_fields();
     source_file = savefile;
+    init_fields();
     parse_filename(savefile.stem());
 
     en_parsing_block current_block = BLK_NA;
@@ -24,33 +26,13 @@ Block::Block(std::filesystem::path savefile) {
         if (current_line == "") continue;
 
         parse_line(current_line, linenum, current_block, parsed_time_blk, parsed_meta_blk);
-    }
-
-    file.close();
+    } file.close();
 
     integrity_check();
 }
 
-void Block::integrity_check() {
-    std::string err = "in file '" + source_file.string() + "', ";
-
-    if (t_start.tm_year == 0) throw std::runtime_error(err+"uninitialized start time");
-    if (t_end.tm_year == 0) throw std::runtime_error(err+"uninitialized end time");
-
-    if (std::mktime(&t_start) >= std::mktime(&t_end))
-        throw std::runtime_error(err+"start time ("+get_t_start_str()
-                                 +") is after end time ("+get_t_end_str()+")");
-
-    if (title == "") throw std::runtime_error(err+"title is empty");
-
-    if (id < 0 || id > 99999) throw std::runtime_error
-        (err+"id is out of range [0, 99999] ("+std::to_string(id)+")");
-
-    if (group < 0 || group > 99999) throw std::runtime_error
-        (err+"group is out of range [0, 99999] ("+std::to_string(group)+")");
-
-    if (color < 0 || color > 7) throw std::runtime_error
-        (err+"color is out of range [0, 7] ("+std::to_string(color)+")");
+Block::Block(const Block& other) {
+    *this = other;
 }
 
 void Block::parse_line(std::string line,
@@ -58,8 +40,8 @@ void Block::parse_line(std::string line,
                        en_parsing_block& cur_block,
                        bool& parsed_time,
                        bool& parsed_meta) {
-    std::string error = "error parsing " + source_file.string()
-                        + " @ line " + std::to_string(line_num);
+    std::string error = error_str + " @ line " + std::to_string(line_num)
+                        + ", error parsing";
 
     switch (cur_block) {
         case BLK_NA: // look for the start of a new block
@@ -116,13 +98,12 @@ void Block::init_field(std::string name, std::string contents, std::string error
         }
     } else if (name == "start") {
         strptime(contents.c_str(), date_format, &t_start);
-    } else if (name == "end") {
-        strptime(contents.c_str(), date_format, &t_end);
     } else if (name == "group") {
         try {
             group = std::stoi(contents);
         } catch (const std::exception& e) {
-            throw std::runtime_error(error + ", can't parse group id into integer");
+            throw std::runtime_error
+                (error + ", can't parse group id into integer: " + contents);
         }
     } else if (name == "color") {
         color = -1;
@@ -136,6 +117,27 @@ void Block::init_field(std::string name, std::string contents, std::string error
             throw std::runtime_error(error
                   + ", cant parse color '"+contents+"' into integer");
         }}
+    } else if (name == "duration") {
+        size_t colon_pos = contents.find(":");
+        if (colon_pos == std::string::npos)
+            throw std::runtime_error
+                (error + ", duration doesn't contain a colon: " + contents);
+
+        int hours;
+        try {
+            hours = std::stoi(contents.substr(0, colon_pos));
+        } catch (const std::exception& e) { throw std::runtime_error
+            (error + "couldn't parse hour from duration: " + contents);
+        } 
+
+        int minutes;
+        try {
+            minutes = std::stoi(contents.substr(colon_pos + 1));
+        } catch (const std::exception& e) { throw std::runtime_error
+            (error + "couldn't parse hour from duration: " + contents);
+        } 
+
+        duration = minutes*60 + hours*3600;
     } else {
         throw std::runtime_error(error + ", unrecognized field name: " + name);
     }
@@ -158,6 +160,7 @@ void Block::parse_filename(std::string filename) {
 }
 
 void Block::init_fields() {
+    error_str = "block in file " + source_file.string();
     title = "";
     link = "";
     link_type = LINK_NA;
@@ -167,11 +170,13 @@ void Block::init_fields() {
     collapsible = false;
     important = false;
     t_start = {0};
-    t_end = {0};
+    duration = 0;
     std::fill(modified, modified + field_count, false);
 }
 
-void Block::dump_info() {
+void Block::dump_info() const {
+    std::cout << std::endl;
+    std::cout << "file: " << source_file.string() << std::endl;
     std::cout << "title: " << title << std::endl;
     std::cout << "id: " << id << std::endl;
     std::cout << "link: " << link << std::endl;
@@ -181,8 +186,7 @@ void Block::dump_info() {
     std::cout << "collapsible: " << collapsible << std::endl;
     std::cout << "important: " << important << std::endl;
     std::cout << "start: " << get_t_start_str() << std::endl;
-    std::cout << "end: " << get_t_end_str() << std::endl;
-    std::cout << "file: " << source_file.string() << std::endl;
+    std::cout << "duration: " << get_duration_str() << std::endl;
 }
 
 void Block::save_to_file() {
@@ -200,7 +204,7 @@ void Block::save_to_file() {
                            modified[FLD_COLLAPSIBLE] ||
                            modified[FLD_IMPORTANT] ||
                            modified[FLD_START] ||
-                           modified[FLD_END];
+                           modified[FLD_DURATION];
 
     if (writing_to_file) {
         std::ifstream infile;
@@ -259,7 +263,7 @@ void Block::save_to_file() {
         }
     }
 
-    if (modified[FLD_START] || modified[FLD_END]) {
+    if (modified[FLD_START] || modified[FLD_DURATION]) {
         bool in_block = false;
         std::string line;
 
@@ -275,15 +279,15 @@ void Block::save_to_file() {
 
                     if (modified[FLD_START])
                         file_vec[i] += "start = " + get_t_start_str() + "\n";
-                    if (modified[FLD_END])
-                        file_vec[i] += "end   = " + get_t_end_str() + "\n";
+                    if (modified[FLD_DURATION])
+                        file_vec[i] += "duration = " + get_duration_str() + "\n";
 
                     file_vec[i] += "@end";
                     break;
                 }
 
                 if ((line.find("start") == 0 && modified[FLD_START]) ||
-                    (line.find("end")   == 0 && modified[FLD_END])) {
+                    (line.find("duration") == 0 && modified[FLD_DURATION])) {
 
                     file_vec.erase(file_vec.begin() + i);
                     i--;
@@ -308,20 +312,99 @@ void Block::save_to_file() {
         modified[FLD_COLLAPSIBLE] =
         modified[FLD_IMPORTANT] =
         modified[FLD_START] =
-        modified[FLD_END] = false;
+        modified[FLD_DURATION] = false;
     }
 }
 
-std::string Block::get_t_end_str() {
-    strftime(date_buffer, sizeof(date_buffer), date_format, &t_end);
-    return std::string(date_buffer);
+void Block::integrity_check() const {
+    title_integrity(title);
+    t_start_integrity(t_start);
+    duration_integrity(duration);
+    id_integrity(id);
+    group_integrity(group);
+    color_integrity(color);
+    source_file_integrity(source_file);
 }
 
-std::string Block::get_t_start_str() {
-    strftime(date_buffer, sizeof(date_buffer), date_format, &t_start);
-    return std::string(date_buffer);
+void Block::title_integrity(std::string val) const {
+    if (val == "") throw std::runtime_error(error_str+", title is empty");
 }
 
-std::string Block::get_color_str() {
-    return color_names[color];
+void Block::t_start_integrity(struct tm val) const {
+    if (val.tm_year == 0) throw std::runtime_error(error_str+", uninitialized start time");
+}
+
+void Block::duration_integrity(time_t val) const {
+    if (val%60 != 0) throw std::runtime_error
+        (error_str+", duration not in minutes: " + std::to_string(val));
+
+    if (val > 24*60*60) throw std::runtime_error
+        (error_str+", duration greater than 24 hours: " + std::to_string(val));
+
+    if (val == 0) throw std::runtime_error
+        (error_str+", duration is 0");
+}
+
+void Block::id_integrity(int val) const {
+    if (val < 0 || val > 99999) throw std::runtime_error
+        (error_str+", id is out of range [0, 99999] ("+std::to_string(val)+")");
+}
+
+void Block::group_integrity(int val) const {
+    if (val < 0 || val > 99999) throw std::runtime_error
+        (error_str+", group is out of range [0, 99999] ("+std::to_string(val)+")");
+}
+
+void Block::color_integrity(int val) const {
+    if (val < 0 || val > 7) throw std::runtime_error
+        (error_str+", color is out of range [0, 7] ("+std::to_string(val)+")");
+}
+
+void Block::source_file_integrity(std::filesystem::path val) const {
+    if (!std::filesystem::is_regular_file(val)) throw std::runtime_error
+        (error_str+", path is not valid");
+}
+
+std::string Block::get_duration_str() const {
+    int hours = duration / 3600;
+    int minutes = (duration % 3600) / 60;
+
+    std::string hours_str = std::to_string(hours);
+    std::string minutes_str = ((minutes < 10)? "0" : "") + std::to_string(minutes);
+
+    return hours_str + ":" + minutes_str;
+}
+
+std::string Block::get_t_start_str() const {
+    std::string hour = ((t_start.tm_hour < 10)? "0":"")
+                       + std::to_string(t_start.tm_hour);
+
+    std::string minute = ((t_start.tm_min < 10)? "0":"")
+                         + std::to_string(t_start.tm_min);
+
+    std::string day = ((t_start.tm_mday < 10)? "0":"")
+                      + std::to_string(t_start.tm_mday);
+
+    std::string month = ((t_start.tm_mon + 1 < 10)? "0":"")
+                        + std::to_string(t_start.tm_mon + 1);
+
+    std::string year = ((t_start.tm_year + 1900 < 10)? "0":"")
+                       + std::to_string(t_start.tm_year + 1900);
+
+    return hour + ":" + minute + "~" + day + "." + month + "." + year;
+}
+
+std::string Block::get_color_str() const { return color_names[color]; }
+
+std::string Block::get_source_file_str() const { return source_file.string(); }
+
+int Block::get_id() const { return id; }
+struct tm Block::get_t_start() const { return t_start; }
+std::string Block::get_title() const { return title; }
+
+time_t Block::get_time_t_start() const {
+    return t_start.tm_year * 365 * 24 * 60 * 60
+         + t_start.tm_yday * 24 * 60 * 60
+         + t_start.tm_hour * 60 * 60
+         + t_start.tm_min * 60 * 60;
 }

@@ -1,0 +1,10 @@
+@document.meta
+color: green
+@end
+
+@code lua time
+start = 14:00~03.05.2019
+duration = 0:01
+@end
+
+14
