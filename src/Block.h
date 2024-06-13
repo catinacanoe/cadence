@@ -38,7 +38,8 @@ private:
     struct tm t_start;
     time_t duration;
 
-    const char *date_format = "%H:%M~%d.%m.%Y";
+    const char *date_format = "%H:%M~%d.%m.%Y"; // for parsing / writing save files
+    const char *hour_format = "%H:%M"; // for ui
 
     std::filesystem::path source_file; // the save file containing the fields
 
@@ -74,12 +75,14 @@ private:
 public:
     Block(std::filesystem::path savefile);
     Block(const Block& other);
+    Block();
 
     void dump_info() const; // just a debug function
 
     void save_to_file(); // if the current fields don't match the savefile, update it
     
     std::string get_t_start_str() const; // start time as a formatted date string
+    std::string get_t_start_hour_str() const; // hour of day of start time
     std::string get_duration_str() const; // start time as a formatted date string
     std::string get_color_str() const; // color in the string name
     std::string get_source_file_str() const; // the source file string
@@ -88,6 +91,8 @@ public:
     time_t get_time_t_start() const;
     int get_id() const;
     std::string get_title() const;
+    bool get_collapsible() const;
+    time_t get_duration() const;
     
     void integrity_check() const; // check that all field values make sense
     

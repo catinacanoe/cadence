@@ -6,7 +6,7 @@ Database::Database(std::filesystem::path save_folder) {
 
     error_str = "database in folder " + source_folder.string();
 
-    for (const std::filesystem::path& file
+    for (const std::filesystem::path file
         : std::filesystem::directory_iterator(source_folder)) {
         if (!std::filesystem::is_regular_file(file)) continue;
 
@@ -37,11 +37,32 @@ Database::Database(std::filesystem::path save_folder) {
     }
 }
 
+std::vector<Block> Database::get_blocks_on_day(struct tm date) const {
+    time_t start_time = std::mktime(&date);
+    time_t end_time = start_time + 24*60*60;
+
+    std::vector<Block> ret;
+
+    bool hit_start = false;
+    for (size_t i = 0; i < block_list.size(); i++) {
+        Block block = block_list[i];
+
+        if (!hit_start && block.get_time_t_start() >= start_time) hit_start = true;
+
+        if (hit_start) {
+            if (block.get_time_t_start() >= end_time) return ret;
+            ret.push_back(block);
+        }
+    }
+
+    return ret;
+}
+
 void Database::source_folder_integrity(std::filesystem::path val) {
     if (!std::filesystem::is_directory(val)) throw std::runtime_error
         (error_str+", path is not valid");
 }
 
 void Database::dump_info() const {
-    for (const Block& block : block_list) block.dump_info();
+    for (const Block block : block_list) block.dump_info();
 }

@@ -2,6 +2,7 @@
 
 #include "Day.h"
 #include "Database.h"
+#include <limits>
 
 // figuratively speaking. in reality it represents an arbitrary number of days
 class Week {
@@ -11,6 +12,7 @@ private:
     
     struct tm start_date; // inclusive, the day this 'week' start
     
+    int last_total_width; // the last width that was given to resize
     int day_width, gap_width; // the width of the days and gaps between them (in columns)
     int target_day_width, target_gap_width; // the optimal day width we want to achieve (preconfigured)
     time_t day_start_t, day_end_t; // start and end times of the day (preconfigured)
@@ -27,5 +29,7 @@ public:
 
     // make sure the days are in order
     // run integrity check on each day
-    void integrity_check();
+    void integrity_check() const;
+
+    void dump_info() const; // debug
 };

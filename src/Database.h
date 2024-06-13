@@ -13,4 +13,7 @@ public:
     Database(std::filesystem::path save_folder);
 
     void dump_info() const; // just for debug
+    
+    // sorted list of blocks with start dates within 24h of given date
+    std::vector<Block> get_blocks_on_day(struct tm date) const;
 };

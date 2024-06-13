@@ -3,8 +3,6 @@ color: gray
 @end
 
 @code lua time
-start = 09:00~01.05.2025
-duration = 0:01
+start = 09:00~13.06.2024
+duration = 5:00
 @end
-
-9

@@ -35,6 +35,16 @@ Block::Block(const Block& other) {
     *this = other;
 }
 
+Block::Block() {
+    for (size_t i = 0; i < 7; i++) modified[i] = false;
+    title = error_str = link = "";
+    link_type = LINK_NA;
+    id = group = color = duration = 0;
+    collapsible = important = false;
+    t_start = {0};
+    source_file = "/";
+}
+
 void Block::parse_line(std::string line,
                        int line_num,
                        en_parsing_block& cur_block,
@@ -98,6 +108,8 @@ void Block::init_field(std::string name, std::string contents, std::string error
         }
     } else if (name == "start") {
         strptime(contents.c_str(), date_format, &t_start);
+        t_start.tm_isdst = -1;
+        std::mktime(&t_start);
     } else if (name == "group") {
         try {
             group = std::stoi(contents);
@@ -175,7 +187,7 @@ void Block::init_fields() {
 }
 
 void Block::dump_info() const {
-    std::cout << std::endl;
+    std::cout << " - Block::dump_info()" << std::endl;
     std::cout << "file: " << source_file.string() << std::endl;
     std::cout << "title: " << title << std::endl;
     std::cout << "id: " << id << std::endl;
@@ -346,8 +358,8 @@ void Block::duration_integrity(time_t val) const {
 }
 
 void Block::id_integrity(int val) const {
-    if (val < 0 || val > 99999) throw std::runtime_error
-        (error_str+", id is out of range [0, 99999] ("+std::to_string(val)+")");
+    if (val <= 0 || val > 99999) throw std::runtime_error
+        (error_str+", id is out of range (0, 99999] ("+std::to_string(val)+")");
 }
 
 void Block::group_integrity(int val) const {
@@ -376,22 +388,18 @@ std::string Block::get_duration_str() const {
 }
 
 std::string Block::get_t_start_str() const {
-    std::string hour = ((t_start.tm_hour < 10)? "0":"")
-                       + std::to_string(t_start.tm_hour);
+    char buffer[17];
+    struct tm copy = t_start;
+    std::strftime(buffer, sizeof(buffer), date_format, &copy);
 
-    std::string minute = ((t_start.tm_min < 10)? "0":"")
-                         + std::to_string(t_start.tm_min);
+    return std::string(buffer);
+}
+std::string Block::get_t_start_hour_str() const {
+    char buffer[6];
+    struct tm copy = t_start;
+    std::strftime(buffer, sizeof(buffer), hour_format, &copy);
 
-    std::string day = ((t_start.tm_mday < 10)? "0":"")
-                      + std::to_string(t_start.tm_mday);
-
-    std::string month = ((t_start.tm_mon + 1 < 10)? "0":"")
-                        + std::to_string(t_start.tm_mon + 1);
-
-    std::string year = ((t_start.tm_year + 1900 < 10)? "0":"")
-                       + std::to_string(t_start.tm_year + 1900);
-
-    return hour + ":" + minute + "~" + day + "." + month + "." + year;
+    return std::string(buffer);
 }
 
 std::string Block::get_color_str() const { return color_names[color]; }
@@ -401,10 +409,10 @@ std::string Block::get_source_file_str() const { return source_file.string(); }
 int Block::get_id() const { return id; }
 struct tm Block::get_t_start() const { return t_start; }
 std::string Block::get_title() const { return title; }
+bool Block::get_collapsible() const { return collapsible; }
+time_t Block::get_duration() const { return duration; }
 
 time_t Block::get_time_t_start() const {
-    return t_start.tm_year * 365 * 24 * 60 * 60
-         + t_start.tm_yday * 24 * 60 * 60
-         + t_start.tm_hour * 60 * 60
-         + t_start.tm_min * 60 * 60;
+    struct tm copy = t_start;
+    return std::mktime(&copy);
 }
