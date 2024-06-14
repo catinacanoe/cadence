@@ -410,6 +410,7 @@ int Block::get_id() const { return id; }
 struct tm Block::get_t_start() const { return t_start; }
 std::string Block::get_title() const { return title; }
 bool Block::get_collapsible() const { return collapsible; }
+bool Block::get_important() const { return important; }
 time_t Block::get_duration() const { return duration; }
 
 time_t Block::get_time_t_start() const {

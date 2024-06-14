@@ -2,6 +2,7 @@
 
 #include "Day.h"
 #include "Database.h"
+
 #include <limits>
 
 // figuratively speaking. in reality it represents an arbitrary number of days
@@ -22,6 +23,7 @@ private:
 public:
     Week(Database *db_ptr, int target_day_width_, int target_gap_width_,
          time_t day_start_, time_t day_end_);
+    Week();
     void move_focus(int distance); // focus the day this many away (right positive)
 
     // draws the week over the screen

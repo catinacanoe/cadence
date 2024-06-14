@@ -1,5 +1,13 @@
 #include "Week.h"
 
+Week::Week() {
+    database_ptr = nullptr;
+    day_vec = {};
+    start_date = {0};
+    last_total_width = day_width = gap_width = target_gap_width = target_gap_width
+                     = day_start_t = day_end_t = 0;
+}
+
 Week::Week(Database *db_ptr, int target_day_width_, int target_gap_width_,
            time_t day_start_t_, time_t day_end_t_) {
     time_t now = time(0);

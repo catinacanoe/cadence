@@ -1,5 +1,11 @@
 #include "Database.h"
 
+Database::Database() {
+    block_list = {};
+    source_folder = "/";
+    error_str = " ";
+}
+
 Database::Database(std::filesystem::path save_folder) {
     source_folder_integrity(save_folder);
     source_folder = save_folder;

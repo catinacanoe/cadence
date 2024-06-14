@@ -11,6 +11,7 @@ private:
     void source_folder_integrity(std::filesystem::path val);
 public:
     Database(std::filesystem::path save_folder);
+    Database();
 
     void dump_info() const; // just for debug
     

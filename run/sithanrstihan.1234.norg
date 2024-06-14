@@ -1,5 +1,6 @@
 @document.meta
 color: gray
+important:
 @end
 
 @code lua time

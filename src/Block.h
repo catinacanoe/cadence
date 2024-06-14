@@ -92,6 +92,7 @@ public:
     int get_id() const;
     std::string get_title() const;
     bool get_collapsible() const;
+    bool get_important() const;
     time_t get_duration() const;
     
     void integrity_check() const; // check that all field values make sense

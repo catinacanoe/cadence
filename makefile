@@ -3,5 +3,5 @@ asan:
 		-fsanitize=address \
 		-fno-omit-frame-pointer -g \
 		-std=c++17 \
-		-lncurses \
+		-lncursesw \
 		src/*.cpp -o bin/asan
