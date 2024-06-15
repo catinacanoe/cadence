@@ -82,6 +82,7 @@ public:
     void save_to_file(); // if the current fields don't match the savefile, update it
     
     std::string get_t_start_str() const; // start time as a formatted date string
+    std::string get_t_end_hour_str() const; // hour of day of end time
     std::string get_t_start_hour_str() const; // hour of day of start time
     std::string get_duration_str() const; // start time as a formatted date string
     std::string get_color_str() const; // color in the string name
@@ -94,6 +95,7 @@ public:
     bool get_collapsible() const;
     bool get_important() const;
     time_t get_duration() const;
+    int get_color() const;
     
     void integrity_check() const; // check that all field values make sense
     

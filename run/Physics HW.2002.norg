@@ -4,8 +4,8 @@ color: blue
 @end
 
 @code lua time
-start = 19:00~13.06.2024
-duration = 0:30
+start = 20:00~14.06.2024
+duration = 1:00
 @end
 
 During this time I would like to work on my physics homework :)))

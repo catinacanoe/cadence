@@ -394,6 +394,13 @@ std::string Block::get_t_start_str() const {
 
     return std::string(buffer);
 }
+std::string Block::get_t_end_hour_str() const {
+    char buffer[6];
+    time_t end = get_time_t_start() + duration;
+    std::strftime(buffer, sizeof(buffer), hour_format, localtime(&end));
+
+    return std::string(buffer);
+}
 std::string Block::get_t_start_hour_str() const {
     char buffer[6];
     struct tm copy = t_start;
@@ -412,6 +419,7 @@ std::string Block::get_title() const { return title; }
 bool Block::get_collapsible() const { return collapsible; }
 bool Block::get_important() const { return important; }
 time_t Block::get_duration() const { return duration; }
+int Block::get_color() const { return color; }
 
 time_t Block::get_time_t_start() const {
     struct tm copy = t_start;
