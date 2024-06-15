@@ -4,6 +4,6 @@ collapsible:
 @end
 
 @code lua time
-start = 09:00~15.06.2024
+start = 09:00~16.06.2024
 duration = 5:00
 @end

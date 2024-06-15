@@ -362,9 +362,7 @@ void Day::custom_box(int height, int width, int top_y, int left_x, int type, boo
     std::string tl, tr, bl, br, hz, vr;
     if (type == 0) { // normal box
         tl = "┌";
-        // tr = collapsed ? "⋅" : "┐";
-        // tr = collapsed ? "─" : "┐";
-        tr = collapsed ? "╴" : "┐";
+        tr = "┐";
         bl = "└";
         br = "┘";
 
@@ -372,8 +370,7 @@ void Day::custom_box(int height, int width, int top_y, int left_x, int type, boo
         vr = "│";
     } else if (type == 1) { // double border
         tl = "╔";
-        // tr = collapsed ? "⋅" : "╗";
-        tr = collapsed ? "═" : "╗";
+        tr = "╗";
         bl = "╚";
         br = "╝";
 
@@ -383,8 +380,6 @@ void Day::custom_box(int height, int width, int top_y, int left_x, int type, boo
         hz = " ";
 
         tl = tr = bl = br = vr = "┊";
-        // tl = tr = bl = br = vr = "┆";
-        // tl = tr = bl = br = vr = "╎";
     }
 
     std::string horizontal = "";
@@ -394,6 +389,15 @@ void Day::custom_box(int height, int width, int top_y, int left_x, int type, boo
 
     mvprintw(top_y, left_x, "%s", top.c_str());
     mvprintw(top_y + height - 1, left_x, "%s", bottom.c_str());
+
+    if (collapsed) {
+        attron(COLOR_PAIR(7));
+        mvprintw(top_y             , left_x            , "┊");
+        mvprintw(top_y             , left_x + width - 1, "┊");
+        mvprintw(top_y + height - 1, left_x            , "┊");
+        mvprintw(top_y + height - 1, left_x + width - 1, "┊");
+        attron(COLOR_PAIR(7));
+    }
 
     for (int i = 1; i < height - 1; i++) {
         mvprintw(top_y + i, left_x, "%s", vr.c_str());
