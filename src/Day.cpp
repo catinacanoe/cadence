@@ -1,10 +1,11 @@
 #include "Day.h"
 
-Day::Day(Database *db_ptr, struct tm date_, time_t day_start_, time_t day_end_) {
-    date = date_;
+Day::Day(Database *db_ptr, time_t date_, time_t day_start_, time_t day_end_) {
+    date = *std::localtime(&date_);
     database_ptr = db_ptr;
     last_height = 0;
-    focused = false;
+    highlighted = false;
+    focused_block_idx = 0;
     day_start = day_start_;
     day_end = day_end_;
     error_str = "Day on " + std::to_string(date.tm_mday) + "."
@@ -15,90 +16,172 @@ Day::Day(Database *db_ptr, struct tm date_, time_t day_start_, time_t day_end_) 
 }
 
 // public
-void Day::draw(int height, int width, int top_y, int left_x) {
-    if (ui_block_vec.size() == 0) return;
+void Day::draw(int height, int width, int top_y, int left_x, bool focused) {
+    resize_heights(height - 1); // one line used for top_line (date str)
+    resize_width(width);
 
-    resize_heights(height - 1); // one line used for date
-    
-    std::string date_str = get_date_str();
-    mvprintw(top_y, left_x + width - date_str.size(), "%s", date_str.c_str());
-
-    std::string rel_day = get_relative_day();
-    if (rel_day.size() != 0)
-        mvprintw(top_y, left_x, "%s", rel_day.c_str());
-
-    top_y++;
-
+    // draw the vertical rails bounding the day
     attron(COLOR_PAIR(7));
-    custom_box(height - 1, width, top_y, left_x, 2, false);
+    custom_box(height, width, top_y, left_x, BOX_DASH_COL, false);
     attroff(COLOR_PAIR(7));
 
-    for (struct ui_block uiblock : ui_block_vec) {
-        int block_top_y = top_y + uiblock.top_y;
+    draw_top_line(width, top_y, left_x, focused);
 
+    top_y++; // the blocks are drawn below
 
-        attron(COLOR_PAIR(uiblock.block.get_color()));
-        custom_box(uiblock.height, width, block_top_y, left_x,
-                   uiblock.block.get_important()? 1 : 0, uiblock.block.get_collapsible());
-        attroff(COLOR_PAIR(uiblock.block.get_color()));
-        refresh();
+    for (size_t i = 0; i < ui_block_vec.size(); i++) {
+        struct ui_block uiblock = ui_block_vec[i];
 
-        std::string hour = uiblock.block.get_t_start_hour_str();
-        mvprintw(block_top_y, left_x + 1, "%s", hour.c_str());
-        refresh();
-
-        if (!uiblock.bottom_adjacent) {
-            hour = uiblock.block.get_t_end_hour_str();
-            int draw_height = (uiblock.height == 2)? 0 : uiblock.height - 1;
-            draw_height += block_top_y;
-
-            mvprintw(draw_height, left_x + width - hour.size() - 1, "%s", hour.c_str());
-            refresh();
-        }
-
-        std::string title = uiblock.block.get_title();
-        int title_y = block_top_y;
-        int title_x = left_x + 1;
-        if (uiblock.height == 2) { title_y += uiblock.height - 1; }
-        else { title_y += (uiblock.height - 1) / 2; title_x++; }
-
-        mvprintw(title_y, title_x, "%s", title.c_str());
+        draw_ui_block(uiblock, uiblock.height, width, top_y + uiblock.top_y, left_x,
+                      focused && focused_block_idx == i);
     }
+
+    if (is_today()) draw_cursor(top_y, left_x + width);
 
     refresh();
+}
 
-    if (is_today()) {
-        float f_line = get_line_at_time(time(0));
-        int i_line = (int) f_line;
-        int dec_3 = (int) (3 * (f_line - i_line));
+// private
+void Day::draw_top_line(int width, int top_y, int left_x, bool focused) {
+    std::string rel_str = get_relative_day();
+    std::string day_str = get_day_str();
+    std::string date_str = get_date_str();
 
-        std::string character = "X";
-        if      (dec_3 == 0) character = "🬂";
-        else if (dec_3 == 1) character = "🬋";
-        else if (dec_3 == 2) character = "🬭";
+    if (focused) attron(COLOR_PAIR(1));
+    else if (rel_str != "") attron(COLOR_PAIR(3));
 
-        attron(COLOR_PAIR(3));
-        mvprintw(top_y + i_line, left_x + width, "%s", character.c_str());
-        attroff(COLOR_PAIR(3));
+    if (rel_str == "") {
+        int spacer_2 = width - (day_str.size() + date_str.size());
+        int spacer_1 = width - date_str.size();
+
+        if (spacer_2 > 0) {
+            std::string spacer(spacer_2, ' ');
+            mvprintw(top_y, left_x, "%s", (day_str + spacer + date_str).c_str());
+        } else if (spacer_1 > 0) {
+            mvprintw(top_y, left_x + spacer_1, "%s", date_str.c_str());
+        } else {
+            mvprintw(top_y, left_x, "%s", date_str.substr(0, width).c_str());
+        }
+    } else {
+        int spacer_3 = width - (rel_str.size() + day_str.size() + 1 + date_str.size());
+        int spacer_2 = width - (rel_str.size() + date_str.size());
+        int spacer_1 = width - date_str.size();
+
+        if (spacer_3 > 0) {
+            std::string spacer(spacer_3, ' ');
+            mvprintw(top_y, left_x, "%s", (rel_str + spacer + day_str + " " + date_str).c_str());
+        } else if (spacer_2 > 0) {
+            std::string spacer(spacer_2, ' ');
+            mvprintw(top_y, left_x, "%s", (rel_str + spacer + date_str).c_str());
+        } else if (spacer_1 > 0) {
+            mvprintw(top_y, left_x + spacer_1, "%s", date_str.c_str());
+        } else {
+            mvprintw(top_y, left_x, "%s", date_str.substr(0, width).c_str());
+        }
     }
+
+    if (focused) attroff(COLOR_PAIR(1));
+    else if (rel_str != "") attroff(COLOR_PAIR(3));
+}
+
+// private
+void Day::draw_cursor(int top_y, int x_pos) {
+    float f_line = get_line_at_time(time(0));
+    int i_line = (int) f_line;
+    int dec_3 = (int) (3 * (f_line - i_line));
+
+    std::string character = "X";
+    if      (dec_3 == 0) character = "🬂";
+    else if (dec_3 == 1) character = "🬋";
+    else if (dec_3 == 2) character = "🬭";
+
+    attron(COLOR_PAIR(3));
+    mvprintw(top_y + i_line, x_pos, "%s", character.c_str());
+    attroff(COLOR_PAIR(3));
+}
+
+// private
+void Day::draw_ui_block(struct ui_block uiblock,
+                        int height, int width, int top_y, int left_x, bool focused) {
+    if (uiblock.block.get_collapsible()) {
+        width -= 2;
+        left_x++;
+    }
+
+    attron(COLOR_PAIR(uiblock.block.get_color()));
+    custom_box(height, width, top_y, left_x,
+               uiblock.block.get_important()? BOX_DBL : BOX_SINGLE, focused);
+    attroff(COLOR_PAIR(uiblock.block.get_color()));
+    refresh();
+
+    if (focused) attron(COLOR_PAIR(1));
+
+    std::string hour = uiblock.block.get_t_start_hour_str();
+    mvprintw(top_y, left_x + 1, "%s", hour.c_str());
+    refresh();
+
+    // if there is not a block right below, specify the ending time
+    if (!uiblock.bottom_adjacent) {
+        hour = uiblock.block.get_t_end_hour_str();
+        int draw_height = (height == 2)? 0 : height - 1;
+        draw_height += top_y;
+
+        mvprintw(draw_height, left_x + width - hour.size() - 1, "%s", hour.c_str());
+        refresh();
+    }
+
+    draw_ui_block_title(uiblock, height - 2, left_x + 2, top_y + 1);
+
+    if (focused) attroff(COLOR_PAIR(1));
+}
+
+// private
+void Day::draw_ui_block_title(struct ui_block uiblock, int height, int left_x, int top_y) {
+    std::vector<std::string> title_vec = uiblock.title_vec;
+
+    if (height == 0) {
+        if (uiblock.block.get_collapsible()) left_x--;
+
+        mvprintw(top_y, left_x, "%s", title_vec[0].c_str());
+    } else {
+        int start_line = (height - title_vec.size()) / 2;
+        if (title_vec.size() >= height) start_line = 0;
+
+        for (int i = 0; i < title_vec.size(); i++) {
+            if (start_line + i == height) break;
+
+            mvprintw(top_y + start_line + i, left_x, "%s", title_vec[i].c_str());
+        }
+    }
+
 }
 
 // private
 void Day::populate_vector() {
-    std::vector<int> focused_ids;
-    // find the id of the focused block(s)
-    for (struct ui_block uiblock : ui_block_vec)
-        if (uiblock.focused) focused_ids.push_back(uiblock.block.get_id());
+    std::vector<int> highlighted_ids = {};
+    int focused_id = 0;
 
-    ui_block_vec.clear();
+    if (ui_block_vec.size() != 0) {
+        // find the id of the focused block(s)
+        for (struct ui_block uiblock : ui_block_vec)
+            if (uiblock.highlighted) highlighted_ids.push_back(uiblock.block.get_id());
 
-    for (Block block : database_ptr->get_blocks_on_day(date)) {
-        struct ui_block new_ui_block = { block, false, false, 0, 0 };
+        focused_id = ui_block_vec[focused_block_idx].block.get_id();
+
+        ui_block_vec.clear();
+    }
+
+    int i = 0;
+    for (Block block : database_ptr->get_blocks_on_day(date)) { i++;
+        struct ui_block new_ui_block = { block, false, false, 0, 0, {} };
 
         // if this block's id is in the focused list
-        if (std::find(focused_ids.begin(), focused_ids.end(), block.get_id())
-            != focused_ids.end()) new_ui_block.focused = true;
+        if (std::find(highlighted_ids.begin(), highlighted_ids.end(), block.get_id())
+            != highlighted_ids.end()) new_ui_block.highlighted = true;
 
+        if (block.get_id() == focused_id) focused_block_idx = i;
+
+        // sets the block before's bottom adjecency
         if (ui_block_vec.size() != 0) {
             struct ui_block &last = ui_block_vec.back();
 
@@ -108,6 +191,30 @@ void Day::populate_vector() {
         }
 
         ui_block_vec.push_back(new_ui_block);
+    }
+
+    if (focused_block_idx >= ui_block_vec.size())
+        focused_block_idx = ui_block_vec.size() - 1;
+}
+
+// private
+void Day::resize_width(int total_width) {
+    if (total_width == last_width) return;
+    last_width = total_width;
+
+    int text_width = total_width - 4;
+
+    for (struct ui_block& uiblock : ui_block_vec) {
+        uiblock.title_vec.clear();
+
+        std::string title = uiblock.block.get_title();
+
+        float f_linecount = title.size();
+        f_linecount /= text_width;
+        int linecount = (int) std::ceil(f_linecount);
+
+        for (int i = 0; i < linecount; i++)
+            uiblock.title_vec.push_back(title.substr(i*text_width, text_width));
     }
 }
 
@@ -272,11 +379,11 @@ void Day::dump_info() const {
     std::cout << "date: " << get_date_str() << std::endl;
     std::cout << "date format: " << date_format << std::endl;
     std::cout << "last height: " << last_height << std::endl;
-    std::cout << "focused: " << focused << std::endl;
+    std::cout << "highlighted: " << highlighted << std::endl;
     std::cout << "day start: " << day_start << std::endl;
     std::cout << "day end: " << day_end << std::endl;
 
-    if (ui_block_vec.size() == 0) {
+    if (ui_block_vec.empty()) {
         std::cout << "no blocks in vector" << std::endl;
         return;
     }
@@ -285,7 +392,7 @@ void Day::dump_info() const {
     std::cout << "LIST OF BLOCKS:" << std::endl;
     for (struct ui_block uiblock : ui_block_vec) {
         std::cout << std::endl;
-        std::cout << "top_y: " << uiblock.top_y << ", height: " << uiblock.height << ", focused: " << uiblock.focused << std::endl;
+        std::cout << "top_y: " << uiblock.top_y << ", height: " << uiblock.height << ", highlighted: " << uiblock.highlighted << std::endl;
         uiblock.block.dump_info();
     }
     std::cout << std::endl << "END OF BLOCKS" << std::endl;
@@ -301,15 +408,45 @@ std::string Day::get_date_str() const {
 }
 
 // public
-void Day::move_focus(int distance) {
+std::string Day::get_day_str() const {
+    char buffer[20];
+    struct tm copy = date;
+    std::strftime(buffer, sizeof(buffer), day_format, &copy);
 
+    return std::string(buffer);
 }
 
 // public
-void Day::set_focused(bool new_focused) { focused = new_focused; }
+void Day::move_focus(int distance) {
+    focused_block_idx += distance;
+    set_focus_inbounds();
+}
+
+// private
+void Day::set_focus_inbounds() {
+    if (focused_block_idx < 0)
+        focused_block_idx = 0;
+
+    if (focused_block_idx >= ui_block_vec.size())
+        focused_block_idx = ui_block_vec.size() - 1;
+}
+
+// public
+void Day::set_highlighted(bool new_highlighted) { highlighted = new_highlighted; }
 
 // public
 void Day::integrity_check() const {
+    int previous_end_line = 0;
+    for (struct ui_block uiblock : ui_block_vec) {
+        if (uiblock.top_y < previous_end_line) {
+            uiblock.block.dump_info();
+            throw std::runtime_error(error_str + "block " + uiblock.block.get_title()
+                                     + " overlaps with previous block");
+        }
+
+        previous_end_line = uiblock.top_y + uiblock.height;
+    }
+
     if (date.tm_hour != 0 || date.tm_min != 0 || date.tm_sec != 0)
         throw std::runtime_error(error_str + ", date is not zeroed to midnight");
 }
@@ -337,30 +474,27 @@ std::string Day::get_relative_day() const {
     time_t date_t = std::mktime(&date_cp);
     time_t day = 24*60*60;
 
-    if (date_t == today_t - day) return "Yesterday";
+    if (date_t == today_t - day) return "Ytdy";
     else if (date_t == today_t) return "Today";
-    else if (date_t == today_t + day) return "Tomorrow";
-    else if (date_t == today_t + 7*day) return "Next Week";
-    else if (date_t == today_t - 7*day) return "Last Week";
+    else if (date_t == today_t + day) return "Tmrw";
+    else if (date_t == today_t + 7*day) return "Nx Wk";
+    else if (date_t == today_t - 7*day) return "Ls Wk";
 
     else if (date.tm_mday == today.tm_mday && date.tm_year == today.tm_year) {
-        if (date.tm_mon == today.tm_mon + 1) return "Next Month";
-        else if (date.tm_mon == today.tm_mon - 1) return "Last Month";
+        if (date.tm_mon == today.tm_mon + 1) return "Nx Mon";
+        else if (date.tm_mon == today.tm_mon - 1) return "Ls Mon";
         else return "";
     } else if (date.tm_mday == today.tm_mday && date.tm_mon == today.tm_mon) {
-        if (date.tm_year == today.tm_year + 1) return "Next Year";
-        else if (date.tm_year == today.tm_year - 1) return "Last Year";
+        if (date.tm_year == today.tm_year + 1) return "Nx Yr";
+        else if (date.tm_year == today.tm_year - 1) return "Ls Yr";
         else return "";
     } else return "";
 }
 
 // private
-void Day::custom_box(int height, int width, int top_y, int left_x, int type, bool collapsed) {
-    if (type < 0 || type > 2)
-        throw std::runtime_error("Day::custom_box type entered out of range");
-
-    std::string tl, tr, bl, br, hz, vr;
-    if (type == 0) { // normal box
+void Day::custom_box(int height, int width, int top_y, int left_x, en_box_type type, bool filled) {
+    std::string tl, tr, bl, br, hz, vr, fill;
+    if (type == BOX_SINGLE) { // normal box
         tl = "┌";
         tr = "┐";
         bl = "└";
@@ -368,7 +502,9 @@ void Day::custom_box(int height, int width, int top_y, int left_x, int type, boo
 
         hz = "─";
         vr = "│";
-    } else if (type == 1) { // double border
+
+        fill = filled? "╱" : " ";
+    } else if (type == BOX_DBL) { // double border
         tl = "╔";
         tr = "╗";
         bl = "╚";
@@ -376,10 +512,11 @@ void Day::custom_box(int height, int width, int top_y, int left_x, int type, boo
 
         hz = "═";
         vr = "║";
-    } else if (type == 2) { // vertical dashed column
-        hz = " ";
 
-        tl = tr = bl = br = vr = "┊";
+        fill = filled? "╱" : " ";
+    } else if (type == BOX_DASH_COL) { // vertical dashed column
+        tl = tr = bl = br = vr = "┆";
+        hz = fill = " ";
     }
 
     std::string horizontal = "";
@@ -388,22 +525,84 @@ void Day::custom_box(int height, int width, int top_y, int left_x, int type, boo
     std::string bottom = bl + horizontal + br;
 
     mvprintw(top_y, left_x, "%s", top.c_str());
-    mvprintw(top_y + height - 1, left_x, "%s", bottom.c_str());
-
-    if (collapsed) {
-        attron(COLOR_PAIR(7));
-        mvprintw(top_y             , left_x            , "┊");
-        mvprintw(top_y             , left_x + width - 1, "┊");
-        mvprintw(top_y + height - 1, left_x            , "┊");
-        mvprintw(top_y + height - 1, left_x + width - 1, "┊");
-        attron(COLOR_PAIR(7));
-    }
 
     for (int i = 1; i < height - 1; i++) {
-        mvprintw(top_y + i, left_x, "%s", vr.c_str());
-        mvprintw(top_y + i, left_x + width - 1, "%s", vr.c_str());
+        std::string line = vr;
+        for (int j = 1; j < width - 1; j++) line += fill;
+        line += vr;
+
+        mvprintw(top_y + i, left_x, "%s", line.c_str());
+    }
+
+    mvprintw(top_y + height - 1, left_x, "%s", bottom.c_str());
+}
+
+// public
+int Day::get_focus_line() {
+    if (ui_block_vec.empty()) return 0;
+
+    return ui_block_vec[focused_block_idx].top_y
+         + ui_block_vec[focused_block_idx].height / 2;
+}
+
+// public
+void Day::set_focus_line(int line) {
+    if (ui_block_vec.empty()) {
+        focused_block_idx = 0;
+        return;
+    }
+
+    // check if task is above first task or after last task
+    if (line < ui_block_vec.front().top_y) {
+        focused_block_idx = 0;
+        return;
+    } else if (line > ui_block_vec.back().top_y) {
+        focused_block_idx = ui_block_vec.size() - 1;
+        return;
+    }
+
+    int previous_end_line = 0;
+
+    for (size_t i = 0; i < ui_block_vec.size(); i++) {
+        struct ui_block uiblock = ui_block_vec[i];
+
+        // check if the line is in this block
+        if (line >= uiblock.top_y && line <= uiblock.top_y + uiblock.height - 1) {
+            focused_block_idx = i;
+        // check if line is in the gap above this block
+        } else if (line >= previous_end_line && line < uiblock.top_y) {
+            int gap_height = uiblock.top_y - previous_end_line; // amount of lines
+            int gap_line = line - previous_end_line; // starting at 0
+
+            float f_gap_pos = gap_line + 1; // so that middle line is treated downwards
+            f_gap_pos /= gap_height;
+
+            if (f_gap_pos <= 0.5 + 0.00001) {
+                focused_block_idx = i - 1;
+            } else {
+                focused_block_idx = i;
+            }
+        } else {
+            previous_end_line = uiblock.top_y + uiblock.height;
+            continue;
+        }
+
+        return;
     }
 }
 
 // public
-struct tm Day::get_date() { return date; }
+bool Day::is_date_equal(struct tm other) const {
+    struct tm cp = date;
+    return std::mktime(&cp) == std::mktime(&other);
+}
+
+// public
+time_t Day::get_date_time() const {
+    struct tm cp = date;
+    return std::mktime(&cp);
+}
+
+// public
+struct tm Day::get_date() const { return date; }
+bool Day::get_highlighted() const { return highlighted; }

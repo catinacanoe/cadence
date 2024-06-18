@@ -15,6 +15,8 @@ void Ui::init_ncurses() {
     initscr(); // sets up mem and clears screen
     curs_set(0); // hides cursor
     cbreak(); // ^C exits program
+    // TODO nodelay(stdscr, true) ask chatgpt what it does
+    keypad(stdscr, true);
     noecho(); // don't write what you type to the screen
 
     if (!has_colors()) throw std::runtime_error("terminal doesn't support colors");
@@ -36,7 +38,14 @@ bool Ui::draw_cycle() {
 
     week.draw(height, width, 0, 0);
 
-    return (getch() == ';');
+    char pressed = getch();
+
+    if      (pressed == 'n') week.move_focus(-1);
+    else if (pressed == 'a') week.move_block_focus(-1);
+    else if (pressed == 'i') week.move_block_focus(1);
+    else if (pressed == 'o') week.move_focus(1);
+
+    return pressed == ';';
 }
 
 //public
