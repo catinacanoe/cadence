@@ -8,6 +8,6 @@ int main(int argc, char** argv) {
     for(size_t i = 0; i < argc; i++)
         args.push_back(argv[i]);
 
-    Ui ui;
-    ui.main(args);
+    Ui ui(args);
+    ui.main();
 }

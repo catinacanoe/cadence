@@ -1,13 +1,24 @@
 #include "Day.h"
 
-Day::Day(Database *db_ptr, time_t date_, time_t day_start_, time_t day_end_) {
+Day::Day(Database *db_ptr, Config *cfg_ptr, time_t date_) {
     date = *std::localtime(&date_);
+
     database_ptr = db_ptr;
+    config_ptr = cfg_ptr;
+
     last_height = 0;
     highlighted = false;
     focused_block_idx = 0;
-    day_start = day_start_;
-    day_end = day_end_;
+
+    day_start = 60*60*config_ptr->num({"time", "day_start_hour"})
+                 + 60*config_ptr->num({"time", "day_start_minute"});
+
+    day_end = 60*60*config_ptr->num({"time", "day_end_hour"})
+               + 60*config_ptr->num({"time", "day_end_minute"});
+
+    date_format = config_ptr->str({"ui", "date_formats", "date_format"});
+    day_format = config_ptr->str({"ui", "date_formats", "day_format"});
+
     error_str = "Day on " + std::to_string(date.tm_mday) + "."
                           + std::to_string(date.tm_mon) + "."
                           + std::to_string(date.tm_year);
@@ -21,9 +32,9 @@ void Day::draw(int height, int width, int top_y, int left_x, bool focused) {
     resize_width(width);
 
     // draw the vertical rails bounding the day
-    attron(COLOR_PAIR(7));
-    custom_box(height, width, top_y, left_x, BOX_DASH_COL, false);
-    attroff(COLOR_PAIR(7));
+    attron(COLOR_PAIR(config_ptr->num({"ui", "colors", "background"})));
+    custom_box(height, width, top_y, left_x, BOX_BACKGROUND, false);
+    attroff(COLOR_PAIR(config_ptr->num({"ui", "colors", "background"})));
 
     draw_top_line(width, top_y, left_x, focused);
 
@@ -36,9 +47,7 @@ void Day::draw(int height, int width, int top_y, int left_x, bool focused) {
                       focused && focused_block_idx == i);
     }
 
-    if (is_today()) draw_cursor(top_y, left_x + width);
-
-    refresh();
+    if (is_today()) draw_cursor(top_y, left_x + width, focused); // segfault
 }
 
 // private
@@ -47,8 +56,10 @@ void Day::draw_top_line(int width, int top_y, int left_x, bool focused) {
     std::string day_str = get_day_str();
     std::string date_str = get_date_str();
 
-    if (focused) attron(COLOR_PAIR(1));
-    else if (rel_str != "") attron(COLOR_PAIR(3));
+    if (focused)
+        attron(COLOR_PAIR(config_ptr->num({"ui", "colors", "focus"})));
+    else if (rel_str != "")
+        attron(COLOR_PAIR(config_ptr->num({"ui", "colors", "relative"})));
 
     if (rel_str == "") {
         int spacer_2 = width - (day_str.size() + date_str.size());
@@ -80,13 +91,15 @@ void Day::draw_top_line(int width, int top_y, int left_x, bool focused) {
         }
     }
 
-    if (focused) attroff(COLOR_PAIR(1));
-    else if (rel_str != "") attroff(COLOR_PAIR(3));
+    if (focused)
+        attroff(COLOR_PAIR(config_ptr->num({"ui", "colors", "focus"})));
+    else if (rel_str != "")
+        attroff(COLOR_PAIR(config_ptr->num({"ui", "colors", "relative"})));
 }
 
 // private
-void Day::draw_cursor(int top_y, int x_pos) {
-    float f_line = get_line_at_time(time(0));
+void Day::draw_cursor(int top_y, int x_pos, bool focused) {
+    float f_line = get_line_at_time(time(0)); // segfault
     int i_line = (int) f_line;
     int dec_3 = (int) (3 * (f_line - i_line));
 
@@ -95,9 +108,13 @@ void Day::draw_cursor(int top_y, int x_pos) {
     else if (dec_3 == 1) character = "🬋";
     else if (dec_3 == 2) character = "🬭";
 
-    attron(COLOR_PAIR(3));
+    if (focused) attron(COLOR_PAIR(config_ptr->num({"ui", "colors", "focus"})));
+    else attron(COLOR_PAIR(config_ptr->num({"ui", "colors", "relative"})));
+
     mvprintw(top_y + i_line, x_pos, "%s", character.c_str());
-    attroff(COLOR_PAIR(3));
+
+    if (focused) attroff(COLOR_PAIR(config_ptr->num({"ui", "colors", "focus"})));
+    else attroff(COLOR_PAIR(config_ptr->num({"ui", "colors", "relative"})));
 }
 
 // private
@@ -110,15 +127,13 @@ void Day::draw_ui_block(struct ui_block uiblock,
 
     attron(COLOR_PAIR(uiblock.block.get_color()));
     custom_box(height, width, top_y, left_x,
-               uiblock.block.get_important()? BOX_DBL : BOX_SINGLE, focused);
+               uiblock.block.get_important()? BOX_IMPORTANT : BOX_NORMAL, focused);
     attroff(COLOR_PAIR(uiblock.block.get_color()));
-    refresh();
 
-    if (focused) attron(COLOR_PAIR(1));
+    if (focused) attron(COLOR_PAIR(config_ptr->num({"ui", "colors", "focus"})));
 
     std::string hour = uiblock.block.get_t_start_hour_str();
     mvprintw(top_y, left_x + 1, "%s", hour.c_str());
-    refresh();
 
     // if there is not a block right below, specify the ending time
     if (!uiblock.bottom_adjacent) {
@@ -127,12 +142,11 @@ void Day::draw_ui_block(struct ui_block uiblock,
         draw_height += top_y;
 
         mvprintw(draw_height, left_x + width - hour.size() - 1, "%s", hour.c_str());
-        refresh();
     }
 
     draw_ui_block_title(uiblock, height - 2, left_x + 2, top_y + 1);
 
-    if (focused) attroff(COLOR_PAIR(1));
+    if (focused) attroff(COLOR_PAIR(config_ptr->num({"ui", "colors", "focus"})));
 }
 
 // private
@@ -153,10 +167,9 @@ void Day::draw_ui_block_title(struct ui_block uiblock, int height, int left_x, i
             mvprintw(top_y + start_line + i, left_x, "%s", title_vec[i].c_str());
         }
     }
-
 }
 
-// private
+// public
 void Day::populate_vector() {
     std::vector<int> highlighted_ids = {};
     int focused_id = 0;
@@ -167,9 +180,9 @@ void Day::populate_vector() {
             if (uiblock.highlighted) highlighted_ids.push_back(uiblock.block.get_id());
 
         focused_id = ui_block_vec[focused_block_idx].block.get_id();
-
-        ui_block_vec.clear();
     }
+
+    ui_block_vec.clear();
 
     int i = 0;
     for (Block block : database_ptr->get_blocks_on_day(date)) { i++;
@@ -326,7 +339,7 @@ float Day::get_line_at_time(time_t absolute_time) { // assume the time is today
     time_t start_time = 0, duration = 0;
 
     int previous_end_line;
-    time_t previous_end_time;
+    time_t previous_end_time = get_date_time() + day_start;
     for (struct ui_block uiblock: ui_block_vec) { Block block = uiblock.block;
 
         // first check range between last block and start of this one
@@ -356,12 +369,19 @@ float Day::get_line_at_time(time_t absolute_time) { // assume the time is today
     }
 
     if (height == 0) { // time is below the last block
-        struct ui_block uiblock = ui_block_vec.back();
+        if (ui_block_vec.empty()) {
+            start_line = 0;
+            height = (float) last_height - 0.33333;
+            start_time = previous_end_time;
+            duration = day_end - day_start;
+        } else {
+            struct ui_block uiblock = ui_block_vec.back(); // segfault
 
-        start_line = uiblock.top_y + uiblock.height - 0.33333;
-        height = last_height - previous_end_line + 0.33333;
-        start_time = previous_end_time;
-        duration = std::mktime(&date) + day_end - previous_end_time;
+            start_line = uiblock.top_y + uiblock.height - 0.33333;
+            height = last_height - previous_end_line + 0.33333;
+            start_time = previous_end_time;
+            duration = std::mktime(&date) + day_end - previous_end_time;
+        }
     }
 
     // ret = start_line + height * (absolute_time - start_time) / duration
@@ -402,7 +422,7 @@ void Day::dump_info() const {
 std::string Day::get_date_str() const {
     char buffer[20];
     struct tm copy = date;
-    std::strftime(buffer, sizeof(buffer), date_format, &copy);
+    std::strftime(buffer, sizeof(buffer), date_format.c_str(), &copy);
 
     return std::string(buffer);
 }
@@ -411,16 +431,28 @@ std::string Day::get_date_str() const {
 std::string Day::get_day_str() const {
     char buffer[20];
     struct tm copy = date;
-    std::strftime(buffer, sizeof(buffer), day_format, &copy);
+    std::strftime(buffer, sizeof(buffer), day_format.c_str(), &copy);
 
     return std::string(buffer);
 }
+
+// public
+bool Day::has_blocks() { return !ui_block_vec.empty(); }
 
 // public
 void Day::move_focus(int distance) {
     focused_block_idx += distance;
     set_focus_inbounds();
 }
+
+// public
+void Day::set_focus(int new_focus) {
+    focused_block_idx = new_focus;
+    set_focus_inbounds();
+}
+
+// public
+int Day::get_focus() { return focused_block_idx; }
 
 // private
 void Day::set_focus_inbounds() {
@@ -474,50 +506,49 @@ std::string Day::get_relative_day() const {
     time_t date_t = std::mktime(&date_cp);
     time_t day = 24*60*60;
 
-    if (date_t == today_t - day) return "Ytdy";
-    else if (date_t == today_t) return "Today";
-    else if (date_t == today_t + day) return "Tmrw";
-    else if (date_t == today_t + 7*day) return "Nx Wk";
-    else if (date_t == today_t - 7*day) return "Ls Wk";
+    if (date_t == today_t - day)
+        return config_ptr->str({"ui", "relative_time", "yesterday"});
+    else if (date_t == today_t)
+        return config_ptr->str({"ui", "relative_time", "today"});
+    else if (date_t == today_t + day)
+        return config_ptr->str({"ui", "relative_time", "tomorrow"});
+    else if (date_t == today_t + 7*day)
+        return config_ptr->str({"ui", "relative_time", "next_week"});
+    else if (date_t == today_t - 7*day)
+        return config_ptr->str({"ui", "relative_time", "last_week"});
 
     else if (date.tm_mday == today.tm_mday && date.tm_year == today.tm_year) {
-        if (date.tm_mon == today.tm_mon + 1) return "Nx Mon";
-        else if (date.tm_mon == today.tm_mon - 1) return "Ls Mon";
+        if (date.tm_mon == today.tm_mon + 1)
+            return config_ptr->str({"ui", "relative_time", "next_month"});
+        else if (date.tm_mon == today.tm_mon - 1)
+            return config_ptr->str({"ui", "relative_time", "last_month"});
         else return "";
     } else if (date.tm_mday == today.tm_mday && date.tm_mon == today.tm_mon) {
-        if (date.tm_year == today.tm_year + 1) return "Nx Yr";
-        else if (date.tm_year == today.tm_year - 1) return "Ls Yr";
+        if (date.tm_year == today.tm_year + 1)
+            return config_ptr->str({"ui", "relative_time", "next_year"});
+        else if (date.tm_year == today.tm_year - 1)
+            return config_ptr->str({"ui", "relative_time", "last_year"});
         else return "";
     } else return "";
 }
 
 // private
 void Day::custom_box(int height, int width, int top_y, int left_x, en_box_type type, bool filled) {
+    std::string type_id;
+
+    if (type == BOX_NORMAL) type_id = "normal";
+    else if (type == BOX_IMPORTANT) type_id = "important";
+    else if (type == BOX_BACKGROUND) type_id = "background";
+
     std::string tl, tr, bl, br, hz, vr, fill;
-    if (type == BOX_SINGLE) { // normal box
-        tl = "┌";
-        tr = "┐";
-        bl = "└";
-        br = "┘";
-
-        hz = "─";
-        vr = "│";
-
-        fill = filled? "╱" : " ";
-    } else if (type == BOX_DBL) { // double border
-        tl = "╔";
-        tr = "╗";
-        bl = "╚";
-        br = "╝";
-
-        hz = "═";
-        vr = "║";
-
-        fill = filled? "╱" : " ";
-    } else if (type == BOX_DASH_COL) { // vertical dashed column
-        tl = tr = bl = br = vr = "┆";
-        hz = fill = " ";
-    }
+    tl = config_ptr->str({"ui", "boxdrawing", type_id+"_tl"});
+    tr = config_ptr->str({"ui", "boxdrawing", type_id+"_tr"});
+    bl = config_ptr->str({"ui", "boxdrawing", type_id+"_bl"});
+    br = config_ptr->str({"ui", "boxdrawing", type_id+"_br"});
+    hz = config_ptr->str({"ui", "boxdrawing", type_id+"_hz"});
+    vr = config_ptr->str({"ui", "boxdrawing", type_id+"_vr"});
+    fill = filled ? config_ptr->str({"ui", "boxdrawing", "highlight_fill"})
+                  : config_ptr->str({"ui", "boxdrawing", type_id+"_fill"});
 
     std::string horizontal = "";
     for (int i = 0; i < width - 2; i++) horizontal += hz;
@@ -589,6 +620,14 @@ void Day::set_focus_line(int line) {
 
         return;
     }
+}
+
+// public
+Block Day::get_focused_block() { return ui_block_vec[focused_block_idx].block; }
+
+// public
+int Day::get_focus_time_start() {
+    return ui_block_vec[focused_block_idx].block.get_time_t_start();
 }
 
 // public

@@ -10,8 +10,10 @@
 class Week {
 private:
     Database *database_ptr; // pointer to the main task database
+    Config *config_ptr; // pointer to the config table
     std::unordered_map<time_t, Day> day_map;
     Day* get_day(time_t date_time);
+    void reload_day(time_t date_time);
 
     // struct tm start_date; // the day this 'week' start
     time_t start_date_time;
@@ -29,14 +31,18 @@ private:
     void set_focus_inbounds(); // move the focus back into bounds if it wasn't
     Day* get_focused_day();
 public:
-    Week(Database *db_ptr, int target_day_width_, int target_gap_width_,
-         time_t day_start_, time_t day_end_);
+    Week(Database *db_ptr, Config *cfg_ptr);
     Week();
     void move_focus(int distance); // focus the day this many away (right positive)
     void move_block_focus(int distance); // passed thru to the focused day
 
     // draws the week over the screen
     void draw(int height, int width, int y_corner, int x_corner);
+
+    // for modyfing blocks
+    void rename_block(std::string new_title);
+    Block get_focused_block();
+    bool block_focused();
 
     // make sure the days are in order
     // run integrity check on each day

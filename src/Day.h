@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Database.h"
+#include "Config.h"
 
 #include <ncursesw/ncurses.h>
 #include <cmath>
@@ -9,7 +10,10 @@
 class Day {
 private:
     struct tm date; // the start of the day this object represents
-    Database *database_ptr; // pointer to the main task database
+    
+    Database *database_ptr;
+    Config *config_ptr;
+
     bool highlighted; // whether or not the day is highlighted
     time_t day_start, day_end; // the hours the day begins and ends (preconfigured)
     std::string error_str;
@@ -17,8 +21,8 @@ private:
     int last_height, last_width; // last height and width passed into resizing functions
     time_t last_time_per_line;
     
-    const char *date_format = "%d.%m";
-    const char *day_format = "%a";
+    std::string date_format;
+    std::string day_format;
     
     int focused_block_idx; // the index of the focused uiblock
 
@@ -38,23 +42,29 @@ private:
     float get_line_at_time(time_t absolute_time); // returns the line number at unix tm
     void resize_heights(int total_height); // sets line count, recalculates block height
     void resize_width(int total_width); // rearranges the title line wrapping of blocks
-    void populate_vector(); // using the db_ptr, load in today's tasks
     void draw_ui_block(struct ui_block uiblock, int height, // draw uiblock in given area
                        int width, int top_y, int left_x, bool focused);
-    void draw_cursor(int top_y, int x_pos); // calculate line num, and draw cursor
+    void draw_cursor(int top_y, int x_pos, bool focused); // draw marker at current time
     void draw_top_line(int width, int top_y, int left_x, bool focused); // date etc
     void draw_ui_block_title(struct ui_block uiblock, int height, int left_x, int top_y);
+    void populate_vector(); // using the db_ptr, load in today's tasks
 
     void set_focus_inbounds(); // move the focus back into bounds if it wasn't
     
-    enum en_box_type { BOX_SINGLE, BOX_DBL, BOX_DASH_COL };
-    static void custom_box(int height, int width, int top_y, int left_x, en_box_type type, bool filled);
+    enum en_box_type { BOX_NORMAL, BOX_IMPORTANT, BOX_BACKGROUND };
+    void custom_box(int height, int width, int top_y, int left_x, en_box_type type, bool filled);
 public:
-    Day(Database *db_ptr, time_t date_, time_t day_start_, time_t day_end_);
+    Day(Database *db_ptr, Config *cfg_ptr, time_t date_);
 
     void set_focus_line(int line); // focus the block closest to this line number
     int get_focus_line(); // get the currently focused line (approx)
     void move_focus(int distance);
+    int get_focus();
+    void set_focus(int new_focus);
+    bool has_blocks();
+
+    Block get_focused_block();
+    int get_focus_time_start(); // return id of focused black
 
     void draw(int height, int width, int top_y, int left_x, bool focused); // draws the day in bounds
     void set_highlighted(bool new_highlighted); // set whether or not day is highlighted

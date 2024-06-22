@@ -6,9 +6,9 @@ Database::Database() {
     error_str = " ";
 }
 
-Database::Database(std::filesystem::path save_folder) {
-    source_folder_integrity(save_folder);
-    source_folder = save_folder;
+Database::Database(Config* cfg_ptr) {
+    source_folder = cfg_ptr->str({"save_path"});
+    source_folder_integrity(source_folder);
 
     error_str = "database in folder " + source_folder.string();
 
@@ -16,7 +16,7 @@ Database::Database(std::filesystem::path save_folder) {
         : std::filesystem::directory_iterator(source_folder)) {
         if (!std::filesystem::is_regular_file(file)) continue;
 
-        Block new_block = Block(file);
+        Block new_block = Block(file, cfg_ptr);
 
         bool inserted = false;
         for (size_t i = 0; i < block_list.size(); i++) {
@@ -43,6 +43,7 @@ Database::Database(std::filesystem::path save_folder) {
     }
 }
 
+// public
 std::vector<Block> Database::get_blocks_on_day(struct tm date) const {
     time_t start_time = std::mktime(&date);
     time_t end_time = start_time + 24*60*60;
@@ -64,11 +65,45 @@ std::vector<Block> Database::get_blocks_on_day(struct tm date) const {
     return ret;
 }
 
+// private
+size_t Database::index_at_time(time_t block_time) {
+    return rec_index_at_time(block_time, 0, block_list.size()-1);
+}
+
+// private
+size_t Database::rec_index_at_time(time_t block_time, size_t range_start, size_t range_end) {
+    // recursive binary search
+    if (range_start == range_end) throw std::runtime_error (error_str
+         + ", error searching for block with start time: " + std::to_string(block_time)
+         + ", range collapsed down to index: " + std::to_string(range_start));
+
+    if (block_list[range_start].get_time_t_start() == block_time) return range_start;
+    if (block_list[range_end].get_time_t_start() == block_time) return range_end;
+
+    size_t pivot = (range_start + range_end) / 2;
+    time_t pivot_time = block_list[pivot].get_time_t_start();
+
+    if (block_time == pivot_time) return pivot;
+    else if (block_time < pivot_time) return rec_index_at_time(block_time, range_start, pivot);
+    else if (block_time > pivot_time) return rec_index_at_time(block_time, pivot, range_end);
+    else return 0; // never hits
+}
+
+// public
+void Database::rename_block(time_t block_time, std::string new_title) {
+    size_t idx = index_at_time(block_time);
+
+    block_list[idx].set_title(new_title);
+    block_list[idx].save_to_file();
+}
+
+// private
 void Database::source_folder_integrity(std::filesystem::path val) {
     if (!std::filesystem::is_directory(val)) throw std::runtime_error
         (error_str+", path is not valid");
 }
 
+// public
 void Database::dump_info() const {
     for (const Block block : block_list) block.dump_info();
 }

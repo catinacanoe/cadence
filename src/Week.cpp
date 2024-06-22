@@ -9,8 +9,7 @@ Week::Week() {
                      = day_start_t = day_end_t = 0;
 }
 
-Week::Week(Database *db_ptr, int target_day_width_, int target_gap_width_,
-           time_t day_start_t_, time_t day_end_t_) {
+Week::Week(Database *db_ptr, Config *cfg_ptr) {
     time_t now = time(0);
     struct tm tmp_tm = *std::localtime(&now);
     tmp_tm.tm_hour = tmp_tm.tm_min = tmp_tm.tm_sec = 0;
@@ -19,10 +18,16 @@ Week::Week(Database *db_ptr, int target_day_width_, int target_gap_width_,
     day_map = {};
 
     database_ptr = db_ptr;
-    day_width = target_day_width = target_day_width_;
-    gap_width = target_gap_width = target_gap_width_;
-    day_start_t = day_start_t_;
-    day_end_t = day_end_t_;
+    config_ptr = cfg_ptr;
+
+    day_width = target_day_width = config_ptr->num({"ui", "target_day_width"});
+    gap_width = target_gap_width = config_ptr->num({"ui", "target_gap_width"});
+
+    day_start_t = 60*60*config_ptr->num({"time", "day_start_hour"})
+                   + 60*config_ptr->num({"time", "day_start_minute"});
+
+    day_end_t = 60*60*config_ptr->num({"time", "day_end_hour"})
+                 + 60*config_ptr->num({"time", "day_end_minute"});
 }
 
 // public
@@ -47,15 +52,33 @@ void Week::draw(int height, int width, int top_y, int left_x) {
     }
 }
 
+bool Week::block_focused() { return get_focused_day()->has_blocks(); }
+
+// public
+Block Week::get_focused_block() { return get_focused_day()->get_focused_block(); }
+
+// public
+void Week::rename_block(std::string new_title) {
+    database_ptr->rename_block(get_focused_day()->get_focus_time_start(), new_title);
+    reload_day(focused_date_time);
+}
+
+// private
+void Week::reload_day(time_t date_time) {
+    int focus = get_day(date_time)->get_focus();
+    day_map.erase(day_map.find(focused_date_time));
+    get_day(date_time)->set_focus(focus);
+}
+
 // private
 Day* Week::get_day(time_t date_time) {
     if (day_map.find(date_time) == day_map.end()) {
         // the day at this time needs to be initilized
         day_map.insert(std::make_pair(
-            date_time, Day(database_ptr, date_time, day_start_t, day_end_t)));
+            date_time, Day(database_ptr, config_ptr, date_time)));
     }
 
-    return &day_map.at(date_time);
+    return &day_map.at(date_time); // segfault
 }
 
 // private
@@ -63,8 +86,6 @@ time_t Week::get_end_date_time() { return start_date_time + (day_count-1)*24*60*
 
 // public
 void Week::integrity_check() const {
-    std::unordered_map<time_t, Day>::iterator itr;
-
     for (const auto & [ date, day ] : day_map) {
         if (date != day.get_date_time()) throw std::runtime_error
             ("Week integrity_check: Day at time " + std::to_string(date)

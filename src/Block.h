@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Config.h"
+
 #include <vector>
 #include <filesystem>
 #include <boost/algorithm/string/trim.hpp>
@@ -38,8 +40,8 @@ private:
     struct tm t_start;
     time_t duration;
 
-    const char *date_format = "%H:%M~%d.%m.%Y"; // for parsing / writing save files
-    const char *hour_format = "%H:%M"; // for ui
+    std::string parse_format; // for parsing / writing save files
+    std::string hour_format; // for ui
 
     std::filesystem::path source_file; // the save file containing the fields
 
@@ -73,7 +75,7 @@ private:
     void color_integrity(int val) const;
     void source_file_integrity(std::filesystem::path val) const;
 public:
-    Block(std::filesystem::path savefile);
+    Block(std::filesystem::path savefile, Config* cfg_ptr);
     Block(const Block& other);
     Block();
 
@@ -96,6 +98,8 @@ public:
     bool get_important() const;
     time_t get_duration() const;
     int get_color() const;
+
+    void set_title(std::string new_title);
     
     void integrity_check() const; // check that all field values make sense
     
@@ -113,6 +117,8 @@ public:
             t_start = other.t_start;
             duration = other.duration;
             source_file = other.source_file;
+            hour_format = other.hour_format;
+            parse_format = other.parse_format;
 
             for (int i = 0; i < field_count; i++) modified[i] = other.modified[i];
         }

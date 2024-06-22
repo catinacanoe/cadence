@@ -1,6 +1,6 @@
 #include "Block.h"
 
-Block::Block(std::filesystem::path savefile) {
+Block::Block(std::filesystem::path savefile, Config* cfg_ptr) {
     source_file_integrity(savefile);
 
     std::ifstream file;
@@ -18,6 +18,9 @@ Block::Block(std::filesystem::path savefile) {
 
     std::string current_line;
     int linenum = 0;
+
+    hour_format = cfg_ptr->str({"ui", "date_formats", "hour_format"});
+    parse_format = cfg_ptr->str({"ui", "date_formats", "parse_format"});
 
     while (file) {
         std::getline(file, current_line); linenum++;
@@ -37,7 +40,7 @@ Block::Block(const Block& other) {
 
 Block::Block() {
     for (size_t i = 0; i < 7; i++) modified[i] = false;
-    title = error_str = link = "";
+    parse_format = hour_format = title = error_str = link = "";
     link_type = LINK_NA;
     id = group = color = duration = 0;
     collapsible = important = false;
@@ -107,7 +110,7 @@ void Block::init_field(std::string name, std::string contents, std::string error
             }
         }
     } else if (name == "start") {
-        strptime(contents.c_str(), date_format, &t_start);
+        strptime(contents.c_str(), parse_format.c_str(), &t_start);
         t_start.tm_isdst = -1;
         std::mktime(&t_start);
     } else if (name == "group") {
@@ -198,6 +201,7 @@ void Block::dump_info() const {
     std::cout << "collapsible: " << collapsible << std::endl;
     std::cout << "important: " << important << std::endl;
     std::cout << "start: " << get_t_start_str() << std::endl;
+    std::cout << "start hr: " << get_t_start_hour_str() << std::endl;
     std::cout << "duration: " << get_duration_str() << std::endl;
 }
 
@@ -388,23 +392,23 @@ std::string Block::get_duration_str() const {
 }
 
 std::string Block::get_t_start_str() const {
-    char buffer[17];
+    char buffer[27];
     struct tm copy = t_start;
-    std::strftime(buffer, sizeof(buffer), date_format, &copy);
+    std::strftime(buffer, sizeof(buffer), parse_format.c_str(), &copy);
 
     return std::string(buffer);
 }
 std::string Block::get_t_end_hour_str() const {
-    char buffer[6];
+    char buffer[15];
     time_t end = get_time_t_start() + duration;
-    std::strftime(buffer, sizeof(buffer), hour_format, localtime(&end));
+    std::strftime(buffer, sizeof(buffer), hour_format.c_str(), localtime(&end));
 
     return std::string(buffer);
 }
 std::string Block::get_t_start_hour_str() const {
-    char buffer[6];
+    char buffer[15];
     struct tm copy = t_start;
-    std::strftime(buffer, sizeof(buffer), hour_format, &copy);
+    std::strftime(buffer, sizeof(buffer), hour_format.c_str(), &copy);
 
     return std::string(buffer);
 }
@@ -424,4 +428,10 @@ int Block::get_color() const { return color; }
 time_t Block::get_time_t_start() const {
     struct tm copy = t_start;
     return std::mktime(&copy);
+}
+
+
+void Block::set_title(std::string new_title) {
+    title = new_title;
+    modified[FLD_TITLE] = true;
 }
