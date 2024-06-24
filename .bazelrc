@@ -1,0 +1,5 @@
+build --action_env=BAZEL_LINKLIBS='-l%:libstdc++.a'
+build --action_env=BAZEL_LINKOPTS='-static-libstdc++ -lm -lncursesw'
+build --cxxopt='-std=c++17'
+common --repo_env=CC=clang++
+common --enable_bzlmod

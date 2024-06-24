@@ -8,11 +8,13 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
+#include <cstdio>
 
 class Block {
 private:
     std::string title; // the title of the task (brief blurb in the ui)
     std::string error_str; // the intro to all errors
+    std::string save_path;
     
     const int field_count = 7; // the number of fields
     bool modified[7]; // keeping track of which fields have been modified
@@ -74,14 +76,17 @@ private:
     void group_integrity(int val) const;
     void color_integrity(int val) const;
     void source_file_integrity(std::filesystem::path val) const;
+
 public:
     Block(std::filesystem::path savefile, Config* cfg_ptr);
+    Block(Config* cfg_ptr, int id_); // id is the only necessary field
     Block(const Block& other);
     Block();
 
     void dump_info() const; // just a debug function
 
     void save_to_file(); // if the current fields don't match the savefile, update it
+    void delete_file();
     
     std::string get_t_start_str() const; // start time as a formatted date string
     std::string get_t_end_hour_str() const; // hour of day of end time
@@ -92,14 +97,20 @@ public:
     
     struct tm get_t_start() const;
     time_t get_time_t_start() const;
+    time_t get_time_t_end() const;
     int get_id() const;
     std::string get_title() const;
     bool get_collapsible() const;
     bool get_important() const;
     time_t get_duration() const;
+    time_t get_date_time() const;
     int get_color() const;
+    std::filesystem::path get_source_file() const;
 
     void set_title(std::string new_title);
+    void set_time_t_start(time_t new_start);
+    void set_duration(time_t new_duration);
+    void set_source_file(std::filesystem::path newfile);
     
     void integrity_check() const; // check that all field values make sense
     
@@ -119,6 +130,7 @@ public:
             source_file = other.source_file;
             hour_format = other.hour_format;
             parse_format = other.parse_format;
+            save_path = other.save_path;
 
             for (int i = 0; i < field_count; i++) modified[i] = other.modified[i];
         }

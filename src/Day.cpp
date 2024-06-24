@@ -206,8 +206,7 @@ void Day::populate_vector() {
         ui_block_vec.push_back(new_ui_block);
     }
 
-    if (focused_block_idx >= ui_block_vec.size())
-        focused_block_idx = ui_block_vec.size() - 1;
+    set_focus_inbounds();
 }
 
 // private
@@ -273,7 +272,6 @@ void Day::resize_heights(int total_height) {
     }
 
     time_t extra_time = mktime(&date) + day_end - last_end_time; // from last task to eod
-    bool is_extra_time = extra_time > 0;
     if (extra_time > 0) {
         float extra_lines = extra_time;
         extra_lines /= time_per_line;
@@ -283,6 +281,11 @@ void Day::resize_heights(int total_height) {
     // check that the heights add up
     int empty_rows = total_height - last_end_line; // rows left empty
     int bottom_y = 0;
+
+    return; // TODO if any errors crop up this is prolly related lmfao
+
+    if (empty_rows < 0
+     && ui_block_vec.back().top_y + ui_block_vec.back().height <= total_height) return;
 
     // if there are empty rows or overflow, account for it
     // in theory this should never happen but just in case
@@ -452,15 +455,27 @@ void Day::set_focus(int new_focus) {
 }
 
 // public
+bool Day::set_focus_id(int id) {
+    for (size_t i = 0; i < ui_block_vec.size(); i++) {
+        if (ui_block_vec[i].block.get_id() == id) {
+            set_focus(i);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// public
 int Day::get_focus() { return focused_block_idx; }
 
 // private
 void Day::set_focus_inbounds() {
-    if (focused_block_idx < 0)
+    if (focused_block_idx <= 0)
         focused_block_idx = 0;
 
-    if (focused_block_idx >= ui_block_vec.size())
-        focused_block_idx = ui_block_vec.size() - 1;
+    else if (focused_block_idx > ui_block_vec.size() - 1)
+             focused_block_idx = ui_block_vec.size() - 1;
 }
 
 // public
@@ -574,6 +589,11 @@ int Day::get_focus_line() {
 
     return ui_block_vec[focused_block_idx].top_y
          + ui_block_vec[focused_block_idx].height / 2;
+}
+
+// public
+void Day::set_focus_time(time_t absolute_time) {
+    set_focus_line(int(get_line_at_time(absolute_time) + 0.5));
 }
 
 // public

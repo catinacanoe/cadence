@@ -1,0 +1,60 @@
+cc_library(
+    name = "Config",
+
+    deps = ["@tomlplusplus"],
+
+    srcs = ["Config.cpp"],
+    hdrs = ["Config.h"],
+)
+
+cc_library(
+    name = "Block",
+
+    deps = [":Config", "@abseil-cpp//absl/strings"],
+
+    srcs = ["Block.cpp"],
+    hdrs = ["Block.h"],
+)
+
+cc_library(
+    name = "Database",
+
+    deps = [":Config", ":Block"],
+
+    srcs = ["Database.cpp"],
+    hdrs = ["Database.h"],
+)
+
+cc_library(
+    name = "Day",
+
+    deps = [":Database", "@ncurses"],
+
+    srcs = ["Day.cpp"],
+    hdrs = ["Day.h"],
+)
+
+cc_library(
+    name = "Week",
+
+    deps = [":Day", ":Database"],
+
+    srcs = ["Week.cpp"],
+    hdrs = ["Week.h"],
+)
+
+cc_library(
+    name = "Ui",
+
+    deps = [":Week", ":Database", "@ncurses"],
+
+    srcs = ["Ui.cpp"],
+    hdrs = ["Ui.h"],
+)
+
+cc_binary(
+    name = "main",
+    deps = [":Ui", "@ncurses"],
+
+    srcs = ["Main.cpp"],
+)

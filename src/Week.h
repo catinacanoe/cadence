@@ -5,6 +5,7 @@
 
 #include <limits>
 #include <unordered_map>
+#include <tuple>
 
 // figuratively speaking. in reality it represents an arbitrary number of days
 class Week {
@@ -29,6 +30,7 @@ private:
     void populate_vector(int day_count); // makes sure the vector has the correct size
     time_t get_end_date_time(); // get the datetime of the last day that is displayed
     void set_focus_inbounds(); // move the focus back into bounds if it wasn't
+    void undo_redo_impl(std::tuple<time_t, int> tup); // move focus to this time
     Day* get_focused_day();
 public:
     Week(Database *db_ptr, Config *cfg_ptr);
@@ -39,10 +41,16 @@ public:
     // draws the week over the screen
     void draw(int height, int width, int y_corner, int x_corner);
 
-    // for modyfing blocks
-    void rename_block(std::string new_title);
+    // getters
     Block get_focused_block();
     bool block_focused();
+
+    // for modyfing blocks
+    void rename_block(std::string new_title);
+    void remove_block();
+    bool new_block_below();
+    void undo();
+    void redo();
 
     // make sure the days are in order
     // run integrity check on each day

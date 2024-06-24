@@ -15,14 +15,10 @@ Config::Config(std::filesystem::path config_file) {
     }
 }
 
-// Config::Config() {
-//     error_str = "";
-//     toml_table = toml::table();
-// }
 
 // public
 void Config::dump_info() {
-    std::cout << str({"keybinds", "default", "left"}) << std::endl;
+    std::cout << toml_table << std::endl;
 }
 
 // public

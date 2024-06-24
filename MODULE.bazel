@@ -1,0 +1,5 @@
+module(name = "cadence", version = "0.1")
+
+bazel_dep(name = "abseil-cpp", version = "20240116.2") # https://registry.bazel.build/modules/abseil-cpp
+bazel_dep(name = "ncurses", version = "6.4.20221231") # https://registry.bazel.build/modules/ncurses
+bazel_dep(name = "tomlplusplus", version = "3.4.0") # https://registry.bazel.build/modules/tomlplusplus

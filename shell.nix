@@ -6,12 +6,14 @@ in
 pkgs.mkShellNoCC {
     packages = with pkgs; [
         gcc
-        ncurses
         clang
+        ncurses
+        # abseil-cpp
+        tomlplusplus
         boost183
     ];
 
-    shellHook = ''
-        clear
-    '';
+    # shellHook = ''
+    #     clear
+    # '';
 }

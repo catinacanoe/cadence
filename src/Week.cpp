@@ -52,6 +52,54 @@ void Week::draw(int height, int width, int top_y, int left_x) {
     }
 }
 
+// public
+bool Week::new_block_below() {
+    time_t block_time;
+
+    if (get_focused_day()->has_blocks())
+        block_time = get_focused_day()->get_focused_block().get_time_t_end();
+    else
+        block_time = focused_date_time + day_start_t;
+
+    if (database_ptr->new_block_below(block_time)) {
+        reload_day(focused_date_time);
+        get_focused_day()->move_focus(1);
+        return true;
+    } else return false;
+}
+
+// public
+void Week::undo() {
+    undo_redo_impl(database_ptr->undo());
+    // const auto [datetime, id] = database_ptr->undo();
+    // // time_t undotime = database_ptr->undo();
+    // if (datetime == 0) return;
+
+    // // set_focus_time(undotime + 60);
+
+    // focused_date_time = datetime;
+    // set_focus_inbounds();
+    // reload_day(focused_date_time);
+    // get_focused_day()->set_focus_id(id);
+}
+
+// public
+void Week::redo() {
+    undo_redo_impl(database_ptr->redo());
+}
+
+// private
+void Week::undo_redo_impl(std::tuple<time_t, int> tup) {
+    const auto [datetime, id] = tup;
+    if (datetime == 0) return;
+
+    focused_date_time = datetime;
+    set_focus_inbounds();
+    reload_day(focused_date_time);
+    get_focused_day()->set_focus_id(id);
+}
+
+// public
 bool Week::block_focused() { return get_focused_day()->has_blocks(); }
 
 // public
@@ -60,6 +108,14 @@ Block Week::get_focused_block() { return get_focused_day()->get_focused_block();
 // public
 void Week::rename_block(std::string new_title) {
     database_ptr->rename_block(get_focused_day()->get_focus_time_start(), new_title);
+    reload_day(focused_date_time);
+}
+
+// public
+void Week::remove_block() {
+    if (!block_focused()) return;
+
+    database_ptr->remove_block(get_focused_day()->get_focus_time_start());
     reload_day(focused_date_time);
 }
 

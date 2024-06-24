@@ -1,11 +1,11 @@
 #include "Ui.h"
 
 Ui::Ui(std::vector<std::string> args_)
-: args(args_),
-  config("/home/canoe/.config/cadence/conf.toml")
+:   args(args_),
+    config("/home/canoe/.config/cadence/conf.toml"),
+    database(&config),
+    week(&database, &config)
 {
-    database = Database(&config);
-    week = Week(&database, &config);
     current_mode = MD_WEEK;
     key_sequence = "";
     time_since_last_key = 0;
@@ -49,20 +49,23 @@ void Ui::init_ncurses() {
     
     // black background
     init_pair(8, -1, 8);
-    for (int i = 1; i < 8; i++) init_pair(i+8,  i, 8);
+    for (int i = 1; i < 8; i++) init_pair(i+8, i, 8);
+
+    // black foreground, colored background
+    init_pair(16, 0, 15);
+    for (int i = 1; i < 8; i++) init_pair(i+16, 0, i);
 }
 
 // private
 bool Ui::draw_cycle() {
-    clear();
-    // refresh();
+    wclear(stdscr);
 
     int height, width; getmaxyx(stdscr, height, width);
 
     week.draw(height - 1, width, 0, 0);
     draw_bottom_bar(height, width);
 
-    refresh();
+    wrefresh(stdscr);
 
     char key = getch();
 
@@ -112,9 +115,24 @@ bool Ui::draw_cycle() {
             else if (sequence == config.str({"keybinds", "week", "rename"})) {
                 if (week.block_focused()) {
                     current_mode = MD_WEEK_RENAME;
-                    key_sequence = week.get_focused_block().get_title();
+                    // key_sequence = week.get_focused_block().get_title();
                 }
             }
+
+            else if (sequence == config.str({"keybinds", "week", "new_block_below"})) {
+                if (week.new_block_below()) {
+                    current_mode = MD_WEEK_RENAME;
+                    // key_sequence = week.get_focused_block().get_title();
+                }
+            }
+
+            else if (sequence == config.str({"keybinds", "week", "undo"}))
+                week.undo();
+            else if (sequence == config.str({"keybinds", "week", "redo"}))
+                week.redo();
+
+            else if (sequence == config.str({"keybinds", "week", "remove"}))
+                week.remove_block();
 
             else key_sequence = sequence;
 
@@ -123,8 +141,8 @@ bool Ui::draw_cycle() {
 
             size_t confirm_pos = sequence.find(config.str({"keybinds", "week", "confirm_rename"}));
             size_t cancel_pos = sequence.find(config.str({"keybinds", "week", "cancel_rename"}));
+            size_t clear_pos = sequence.find(config.str({"keybinds", "week", "clear_rename"}));
             size_t bs_pos = sequence.find("<bs>");
-            size_t left_pos = sequence.find("<bs>");
 
             if (confirm_pos != std::string::npos) {
                 week.rename_block(sequence.substr(0, confirm_pos));
@@ -132,10 +150,12 @@ bool Ui::draw_cycle() {
             }
             else if (cancel_pos != std::string::npos)
                 current_mode = MD_WEEK;
-            else if (bs_pos != std::string::npos)
-                key_sequence = sequence.substr(0, bs_pos - 1);
-            else if (sequence.find("<left>") != std::string::npos)
-                ;
+            else if (clear_pos != std::string::npos)
+                key_sequence = "";
+            else if (bs_pos != std::string::npos) {
+                if (bs_pos > 0) key_sequence = sequence.substr(0, bs_pos - 1);
+                else key_sequence = "";
+            }
             else key_sequence = sequence;
 
             break;
@@ -144,13 +164,30 @@ bool Ui::draw_cycle() {
     return false;
 }
 
+// TODO eventually make this similar to Day::top_bar to handle small widths
 void Ui::draw_bottom_bar(int height, int width) {
+    std::string status = "";
+    int status_col = 0;
+
+    switch(current_mode) {
+        case MD_WEEK:        status = " NORMAL "; status_col = 7+16; break;
+        case MD_WEEK_RENAME: status = " RENAME "; status_col = 5+16; break;
+    }
+
+    attron(A_BOLD);
+
     attron(COLOR_PAIR(8));
-
-    // TODO eventually make this similar to Day::top_bar to handle small widths
-    std::string top_bar(width, ' ');
-    mvprintw(height - 1, 0, "%s", top_bar.c_str());
-    mvprintw(height - 1, 0, "%s", key_sequence.c_str());
-
+    std::string spaces(width, ' ');
+    mvprintw(height - 1, 0, "%s", spaces.c_str());
     attroff(COLOR_PAIR(8));
+
+    attron(COLOR_PAIR(status_col));
+    mvprintw(height - 1, 0, "%s", status.c_str());
+    attroff(COLOR_PAIR(status_col));
+
+    attron(COLOR_PAIR(8));
+    mvprintw(height - 1, status.size() + 1, "%s", key_sequence.c_str());
+    attroff(COLOR_PAIR(8));
+
+    attroff(A_BOLD);
 }

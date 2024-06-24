@@ -21,6 +21,7 @@ Block::Block(std::filesystem::path savefile, Config* cfg_ptr) {
 
     hour_format = cfg_ptr->str({"ui", "date_formats", "hour_format"});
     parse_format = cfg_ptr->str({"ui", "date_formats", "parse_format"});
+    save_path = cfg_ptr->str({"save_path"});
 
     while (file) {
         std::getline(file, current_line); linenum++;
@@ -32,6 +33,28 @@ Block::Block(std::filesystem::path savefile, Config* cfg_ptr) {
     } file.close();
 
     integrity_check();
+}
+
+Block::Block(Config* cfg_ptr, int id_) {
+    title = cfg_ptr->str({"ui", "boxdrawing", "highlight_fill"});
+    error_str = "block initialized from scratch";
+    for (size_t i = 0; i < 7; i++) modified[i] = false;
+    link = "";
+    link_type = LINK_NA;
+    id = id_;
+    group = 0;
+    color = 0;
+    collapsible = false;
+    important = false;
+    time_t now = time(0); t_start = *std::localtime(&now);
+    duration = 60;
+
+    hour_format = cfg_ptr->str({"ui", "date_formats", "hour_format"});
+    parse_format = cfg_ptr->str({"ui", "date_formats", "parse_format"});
+
+    modified[FLD_TITLE] = true;
+    source_file = "";
+    save_path = cfg_ptr->str({"save_path"});
 }
 
 Block::Block(const Block& other) {
@@ -111,7 +134,7 @@ void Block::init_field(std::string name, std::string contents, std::string error
         }
     } else if (name == "start") {
         strptime(contents.c_str(), parse_format.c_str(), &t_start);
-        t_start.tm_isdst = -1;
+        t_start.tm_isdst = -1; // set to noop so mktime sets it
         std::mktime(&t_start);
     } else if (name == "group") {
         try {
@@ -205,11 +228,40 @@ void Block::dump_info() const {
     std::cout << "duration: " << get_duration_str() << std::endl;
 }
 
+// public
+void Block::set_source_file(std::filesystem::path newfile) {
+    source_file = newfile;
+    modified[FLD_TITLE] = true;
+}
+
+// public
+void Block::delete_file() {
+    std::remove(source_file.c_str());
+    source_file = "";
+    for (size_t i = 0; i < 7; i++) modified[i] = true;
+}
+
+// public
 void Block::save_to_file() {
     if (modified[FLD_TITLE]) {
-        std::filesystem::path new_file = source_file.parent_path().string() + "/" + title + "." + std::to_string(id) + ".norg";
+        if (source_file.string() == "") {
+            source_file = save_path + "/TMPFILE.norg";
+            std::ofstream tmp_ofstream(source_file);
+
+            tmp_ofstream << "@document.meta" << std::endl;
+            tmp_ofstream << "@end" << std::endl;
+            tmp_ofstream << std::endl;
+            tmp_ofstream << "@code lua time" << std::endl;
+            tmp_ofstream << "@end" << std::endl;
+
+            tmp_ofstream.close();
+        }
+
+        std::filesystem::path new_file = save_path + "/"
+                                       + title + "." + std::to_string(id) + ".norg";
         std::rename(source_file.string().c_str(), new_file.string().c_str());
         source_file = new_file;
+        error_str = "block in file " + source_file.string();
 
         modified[FLD_TITLE] = false;
     }
@@ -424,14 +476,35 @@ bool Block::get_collapsible() const { return collapsible; }
 bool Block::get_important() const { return important; }
 time_t Block::get_duration() const { return duration; }
 int Block::get_color() const { return color; }
+std::filesystem::path Block::get_source_file() const { return source_file; }
 
 time_t Block::get_time_t_start() const {
     struct tm copy = t_start;
     return std::mktime(&copy);
 }
 
+time_t Block::get_date_time() const {
+    struct tm copy = t_start;
+    copy.tm_hour = copy.tm_min = copy.tm_sec = 0;
+    return std::mktime(&copy);
+}
+
+time_t Block::get_time_t_end() const { return get_time_t_start() + duration; }
 
 void Block::set_title(std::string new_title) {
     title = new_title;
     modified[FLD_TITLE] = true;
+    title_integrity(title);
+}
+
+void Block::set_time_t_start(time_t new_start) {
+    t_start = *std::localtime(&new_start);
+    modified[FLD_START] = true;
+    t_start_integrity(t_start);
+}
+
+void Block::set_duration(time_t new_duration) {
+    duration = new_duration;
+    modified[FLD_DURATION] = true;
+    duration_integrity(duration);
 }
