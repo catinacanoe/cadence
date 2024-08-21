@@ -61,7 +61,7 @@ bool Week::new_block_below() {
     else
         block_time = focused_date_time + day_start_t;
 
-    if (database_ptr->new_block_below(block_time)) {
+    if (database_ptr->new_block_below(block_time)) { // returns succesful bool
         reload_day(focused_date_time);
         get_focused_day()->move_focus(1);
         return true;

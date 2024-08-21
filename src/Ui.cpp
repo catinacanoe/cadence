@@ -71,7 +71,7 @@ bool Ui::draw_cycle() {
 
     if (key == ERR) {
         if (time_since_last_key > config.num({"keybinds", "timeout"})
-         && current_mode != MD_WEEK_RENAME) {
+         && current_mode != MD_WEEK_RENAME) { // we are typing for long in week_rename so no timeout
             key_sequence = "";
         }
 
@@ -82,7 +82,7 @@ bool Ui::draw_cycle() {
 
     time_since_last_key = 0;
 
-    switch (key) {
+    switch (key) { // update key_sequence with appropriate escape, or just the char
         case 4:  key_sequence += "<left>";  break;
         case 3:  key_sequence += "<up>";    break;
         case 2:  key_sequence += "<down>";  break;
