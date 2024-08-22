@@ -95,8 +95,16 @@ int Database::fresh_id() {
 }
 
 // private
+int Database::index_before_time(time_t block_time) {
+    for (size_t i = block_list.size()-1; i >= 0; i--) {
+        if (block_list[i].get_time_t_end() <= block_time) return i;
+    }
+
+    return -1;
+}
+
+// private
 int Database::index_after_time(time_t block_time) {
-    // TODO optimize into a recursive binary search
     for (size_t i = 0; i < block_list.size(); i++) {
         if (block_list[i].get_time_t_start() >= block_time) return i;
     }
@@ -141,6 +149,53 @@ bool Database::new_block_below(time_t block_time) {
         return false;
     }
 
+    block.save_to_file();
+    int idx = insert_block(block);
+
+    undo_vec.push_back({ ACT_CREATE, idx, block });
+
+    return true;
+}
+
+// public
+// precondition: time is the start time of a valid block
+bool Database::new_block_above(time_t block_time) {
+    // create a block that exists exactly where we would put it if there was space
+    Block block(config_ptr, fresh_id());
+    block.set_duration(60*config_ptr->num({"time", "default_block_minutes"}));
+    block.set_time_t_start(block_time - block.get_duration());
+
+    int prev_idx = index_before_time(block_time);
+    time_t this_day_start = block.get_date_time();
+
+    if (prev_idx == -1 || block_list[prev_idx].get_time_t_end() <= block.get_time_t_start()) {
+        // either there is no prev block, or it is not in the way
+
+        // just check that we are not hitting day start
+        if (block.get_time_t_end() <= this_day_start) {
+            return false; // we are fully out of the day, and can't modify anything else
+        } else if (block.get_time_t_start() < this_day_start) {
+            // just shorten block until it fits in the day
+            block.set_duration(block.get_time_t_end() - this_day_start);
+            block.set_time_t_start(this_day_start);
+        } else {
+            // we are not hitting any blocks
+            // and are fully clear of day boundaries
+            // all is good, proceed
+        }
+    } else if (block.get_time_t_end() <= block_list[prev_idx].get_time_t_end()) {
+        // this block is fully colliding with prev block, can't do anything
+        return false;
+    } else if (block.get_time_t_start() <= block_list[prev_idx].get_time_t_end()) {
+        // this block starts inside the prev block, shorten it
+        block.set_duration(block.get_time_t_end()
+                           - block_list[prev_idx].get_time_t_end());
+        block.set_time_t_start(block_list[prev_idx].get_time_t_end());
+    } else {
+        return false;
+    }
+
+    // if we've gotten here, we have succesfully fit the new block in, now save it
     block.save_to_file();
     int idx = insert_block(block);
 

@@ -49,6 +49,9 @@ public:
     void rename_block(std::string new_title);
     void remove_block();
     bool new_block_below();
+    bool new_block_above();
+    bool move_block_down();
+    bool move_block_up();
     void undo();
     void redo();
 

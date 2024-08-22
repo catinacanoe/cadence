@@ -11,6 +11,7 @@ public:
 
     void rename_block(time_t block_time, std::string new_title);
     bool new_block_below(time_t block_time); // returns whether successful or not
+    bool new_block_above(time_t block_time); // returns whether successful or not
     void remove_block(time_t block_time);
 
     std::tuple<time_t, int> undo(); // returns the time and id of the changing block
@@ -39,6 +40,7 @@ private:
     size_t index_at_time(time_t block_time);
     size_t index_at_time_impl(time_t block_time, size_t range_start, size_t range_end);
     int index_after_time(time_t block_time);
+    int index_before_time(time_t block_time);
     void source_folder_integrity(std::filesystem::path val);
     int fresh_id();
     size_t insert_block(Block new_block);

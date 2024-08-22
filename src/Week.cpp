@@ -53,6 +53,27 @@ void Week::draw(int height, int width, int top_y, int left_x) {
 }
 
 // public
+bool Week::new_block_above() {
+    time_t block_time;
+    bool successful;
+
+    if (get_focused_day()->has_blocks()) { // add above the focus
+        block_time = get_focused_day()->get_focused_block().get_time_t_start();
+        successful = database_ptr->new_block_above(block_time);
+    } else { // add at top of day
+        block_time = focused_date_time + day_start_t;
+        successful = database_ptr->new_block_below(block_time);
+    }
+
+    if (successful) {
+        reload_day(focused_date_time);
+        // get_focused_day()->move_focus(-1);
+    }
+
+    return successful;
+}
+
+// public
 bool Week::new_block_below() {
     time_t block_time;
 
@@ -66,6 +87,15 @@ bool Week::new_block_below() {
         get_focused_day()->move_focus(1);
         return true;
     } else return false;
+}
+
+// public
+bool Week::move_block_up() {
+    if (get_focused_day()->has_blocks()) {
+        Block block = get_focused_day()->get_focused_block();
+    } else {
+        return false;
+    }
 }
 
 // public

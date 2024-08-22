@@ -120,11 +120,20 @@ bool Ui::draw_cycle() {
             }
 
             else if (sequence == config.str({"keybinds", "week", "new_block_below"})) {
-                if (week.new_block_below()) {
+                if (week.new_block_below()) { // returns success state
                     current_mode = MD_WEEK_RENAME;
-                    // key_sequence = week.get_focused_block().get_title();
                 }
             }
+            else if (sequence == config.str({"keybinds", "week", "new_block_above"})) {
+                if (week.new_block_above()) { // returns success state
+                    current_mode = MD_WEEK_RENAME;
+                }
+            }
+
+            else if (sequence == config.str({"keybinds", "week", "move_down"})) {
+                week.move_block_down();
+            }
+
 
             else if (sequence == config.str({"keybinds", "week", "undo"}))
                 week.undo();
