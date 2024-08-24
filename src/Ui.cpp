@@ -91,6 +91,7 @@ bool Ui::draw_cycle() {
         case 10: key_sequence += "<cr>";    break;
         case 9:  key_sequence += "<tab>";   break;
         case 27: key_sequence += "<esc>";   break;
+        case 18: key_sequence += "<c-r>";   break;
         default: key_sequence += key;       break;
     }
 
@@ -130,10 +131,54 @@ bool Ui::draw_cycle() {
                 }
             }
 
-            else if (sequence == config.str({"keybinds", "week", "move_down"})) {
+            else if (sequence == config.str({"keybinds", "week", "move_up"}))
+                week.move_block_up();
+            else if (sequence == config.str({"keybinds", "week", "move_down"}))
                 week.move_block_down();
-            }
+            else if (sequence == config.str({"keybinds", "week", "move_right"}))
+                week.move_block_right();
+            else if (sequence == config.str({"keybinds", "week", "move_left"}))
+                week.move_block_left();
 
+            else if (sequence == config.str({"keybinds", "week", "extend_top_up"}))
+                week.extend_top_up();
+            else if (sequence == config.str({"keybinds", "week", "extend_top_down"}))
+                week.extend_top_down();
+            else if (sequence == config.str({"keybinds", "week", "extend_bottom_up"}))
+                week.extend_bottom_up();
+            else if (sequence == config.str({"keybinds", "week", "extend_bottom_down"}))
+                week.extend_bottom_down();
+
+            else if (sequence == config.str({"keybinds", "week", "move_up_snap"}))
+                while(week.move_block_up()) {}
+            else if (sequence == config.str({"keybinds", "week", "move_down_snap"}))
+                while(week.move_block_down()) {}
+            else if (sequence == config.str({"keybinds", "week", "extend_top_up_snap"}))
+                while(week.extend_top_up()) {}
+            else if (sequence == config.str({"keybinds", "week", "extend_bottom_down_snap"}))
+                while(week.extend_bottom_down()) {}
+
+            else if (sequence == config.str({"keybinds", "week", "set_col_white"}))
+                week.set_block_color("white");
+            else if (sequence == config.str({"keybinds", "week", "set_col_red"}))
+                week.set_block_color("red");
+            else if (sequence == config.str({"keybinds", "week", "set_col_green"}))
+                week.set_block_color("green");
+            else if (sequence == config.str({"keybinds", "week", "set_col_yellow"}))
+                week.set_block_color("yellow");
+            else if (sequence == config.str({"keybinds", "week", "set_col_blue"}))
+                week.set_block_color("blue");
+            else if (sequence == config.str({"keybinds", "week", "set_col_purple"}))
+                week.set_block_color("purple");
+            else if (sequence == config.str({"keybinds", "week", "set_col_aqua"}))
+                week.set_block_color("aqua");
+            else if (sequence == config.str({"keybinds", "week", "set_col_gray"}))
+                week.set_block_color("gray");
+
+            else if (sequence == config.str({"keybinds", "week", "toggle_important"}))
+                week.block_toggle_important();
+            else if (sequence == config.str({"keybinds", "week", "toggle_collapsible"}))
+                week.block_toggle_collapsible();
 
             else if (sequence == config.str({"keybinds", "week", "undo"}))
                 week.undo();
@@ -142,6 +187,9 @@ bool Ui::draw_cycle() {
 
             else if (sequence == config.str({"keybinds", "week", "remove"}))
                 week.remove_block();
+
+            else if (sequence == config.str({"keybinds", "week", "reload"}))
+                week.reload_all();
 
             else key_sequence = sequence;
 

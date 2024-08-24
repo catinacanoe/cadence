@@ -1,0 +1,9 @@
+@document.meta
+color: gray
+collapsible:
+@end
+
+@code lua time
+start = 08:30~26.08.2024
+duration = 6:30
+@end

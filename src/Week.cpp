@@ -93,8 +93,147 @@ bool Week::new_block_below() {
 bool Week::move_block_up() {
     if (get_focused_day()->has_blocks()) {
         Block block = get_focused_day()->get_focused_block();
-    } else {
-        return false;
+
+        if (database_ptr->move_block_up(block.get_time_t_start())) {
+            reload_day(block.get_date_time());
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// public
+bool Week::move_block_down() {
+    if (get_focused_day()->has_blocks()) {
+        Block block = get_focused_day()->get_focused_block();
+
+        if (database_ptr->move_block_down(block.get_time_t_start())) {
+            reload_day(block.get_date_time());
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// public
+bool Week::move_block_right() { return move_block_lateral(1); }
+bool Week::move_block_left() { return move_block_lateral(-1); }
+
+// private
+bool Week::move_block_lateral(int amt) {
+    if (get_focused_day()->has_blocks()) {
+        Block block = get_focused_day()->get_focused_block();
+
+        if (database_ptr->move_block_lateral(block.get_time_t_start(), amt)) {
+            reload_day(block.get_date_time());
+            reload_day(block.get_date_time() + amt*24*60*60);
+
+            move_focus(amt);
+            get_focused_day()->set_focus_id(block.get_id());
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool Week::extend_top_up() {
+    if (get_focused_day()->has_blocks()) {
+        Block block = get_focused_day()->get_focused_block();
+
+        if (database_ptr->extend_top_up(block.get_time_t_start())) {
+            reload_day(block.get_date_time());
+            return true;
+        }
+    }
+
+    return false;
+}
+bool Week::extend_top_down() {
+    if (get_focused_day()->has_blocks()) {
+        Block block = get_focused_day()->get_focused_block();
+
+        if (database_ptr->extend_top_down(block.get_time_t_start())) {
+            reload_day(block.get_date_time());
+            return true;
+        }
+    }
+
+    return false;
+}
+bool Week::extend_bottom_up() {
+    if (get_focused_day()->has_blocks()) {
+        Block block = get_focused_day()->get_focused_block();
+
+        if (database_ptr->extend_bottom_up(block.get_time_t_start())) {
+            reload_day(block.get_date_time());
+            return true;
+        }
+    }
+
+    return false;
+}
+bool Week::extend_bottom_down() {
+    if (get_focused_day()->has_blocks()) {
+        Block block = get_focused_day()->get_focused_block();
+
+        if (database_ptr->extend_bottom_down(block.get_time_t_start())) {
+            reload_day(block.get_date_time());
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// public
+bool Week::set_block_color(std::string col) {
+    if (get_focused_day()->has_blocks()) {
+        Block block = get_focused_day()->get_focused_block();
+
+        if (database_ptr->set_block_color(block.get_time_t_start(), col)) {
+            reload_day(block.get_date_time());
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// public
+void Week::block_toggle_collapsible() {
+    if (!get_focused_day()->has_blocks()) return;
+
+    Block block = get_focused_day()->get_focused_block();
+
+    database_ptr->block_toggle_collapsible(block.get_time_t_start());
+    reload_day(block.get_date_time());
+}
+
+// public
+void Week::block_toggle_important() {
+    if (!get_focused_day()->has_blocks()) return;
+
+    Block block = get_focused_day()->get_focused_block();
+
+    database_ptr->block_toggle_important(block.get_time_t_start());
+    reload_day(block.get_date_time());
+}
+
+// public
+void Week::reload_all() {
+    std::vector<time_t> date_times;
+
+    for (const auto& kv : day_map) {
+        date_times.push_back(kv.first);
+    }
+
+    for (time_t date : date_times) {
+        reload_day(date);
     }
 }
 
@@ -125,7 +264,7 @@ void Week::undo_redo_impl(std::tuple<time_t, int> tup) {
 
     focused_date_time = datetime;
     set_focus_inbounds();
-    reload_day(focused_date_time);
+    reload_all();
     get_focused_day()->set_focus_id(id);
 }
 
@@ -152,7 +291,8 @@ void Week::remove_block() {
 // private
 void Week::reload_day(time_t date_time) {
     int focus = get_day(date_time)->get_focus();
-    day_map.erase(day_map.find(focused_date_time));
+    // day_map.erase(day_map.find(focused_date_time));
+    day_map.erase(day_map.find(date_time));
     get_day(date_time)->set_focus(focus);
 }
 

@@ -2,6 +2,6 @@
 @end
 
 @code lua time
-start = 06:00~21.08.2024
+start = 21:30~27.08.2024
 duration = 0:30
 @end

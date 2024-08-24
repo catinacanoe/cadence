@@ -31,6 +31,7 @@ private:
     time_t get_end_date_time(); // get the datetime of the last day that is displayed
     void set_focus_inbounds(); // move the focus back into bounds if it wasn't
     void undo_redo_impl(std::tuple<time_t, int> tup); // move focus to this time
+    bool move_block_lateral(int amt);
     Day* get_focused_day();
 public:
     Week(Database *db_ptr, Config *cfg_ptr);
@@ -48,10 +49,25 @@ public:
     // for modyfing blocks
     void rename_block(std::string new_title);
     void remove_block();
+    void reload_all();
     bool new_block_below();
     bool new_block_above();
+
     bool move_block_down();
     bool move_block_up();
+    bool move_block_right();
+    bool move_block_left();
+
+    bool extend_top_up();
+    bool extend_top_down();
+    bool extend_bottom_up();
+    bool extend_bottom_down();
+
+    bool set_block_color(std::string col);
+
+    void block_toggle_important();
+    void block_toggle_collapsible();
+
     void undo();
     void redo();
 

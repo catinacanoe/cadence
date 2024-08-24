@@ -1,0 +1,9 @@
+@document.meta
+color: red
+important:
+@end
+
+@code lua time
+start = 17:00~26.08.2024
+duration = 5:00
+@end

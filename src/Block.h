@@ -111,6 +111,12 @@ public:
     void set_time_t_start(time_t new_start);
     void set_duration(time_t new_duration);
     void set_source_file(std::filesystem::path newfile);
+    void set_color_str(std::string col);
+    void set_important(bool imp);
+    void set_collapsible(bool coll);
+
+    void toggle_important();
+    void toggle_collapsible();
     
     void integrity_check() const; // check that all field values make sense
     

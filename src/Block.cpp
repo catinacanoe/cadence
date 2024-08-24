@@ -491,6 +491,9 @@ time_t Block::get_date_time() const {
 
 time_t Block::get_time_t_end() const { return get_time_t_start() + duration; }
 
+void Block::toggle_important() { set_important(!important); }
+void Block::toggle_collapsible() { set_collapsible(!collapsible); }
+
 void Block::set_title(std::string new_title) {
     title = new_title;
     modified[FLD_TITLE] = true;
@@ -507,4 +510,31 @@ void Block::set_duration(time_t new_duration) {
     duration = new_duration;
     modified[FLD_DURATION] = true;
     duration_integrity(duration);
+}
+
+void Block::set_color_str(std::string col) {
+    int new_col = -1;
+
+    for (int i = 0; i < 8; i++) {
+        if (color_names[i] == col) {
+            new_col = i;
+            break;
+        }
+    }
+
+    if (new_col == -1) return;
+
+    color = new_col;
+    modified[FLD_COLOR] = true;
+    color_integrity(color);
+}
+
+void Block::set_important(bool imp) {
+    important = imp;
+    modified[FLD_IMPORTANT] = true;
+}
+
+void Block::set_collapsible(bool coll) {
+    collapsible = coll;
+    modified[FLD_COLLAPSIBLE] = true;
 }

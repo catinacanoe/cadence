@@ -97,7 +97,7 @@ int Database::fresh_id() {
 // private
 int Database::index_before_time(time_t block_time) {
     for (size_t i = block_list.size()-1; i >= 0; i--) {
-        if (block_list[i].get_time_t_end() <= block_time) return i;
+        if (block_list[i].get_time_t_start() < block_time) return i;
     }
 
     return -1;
@@ -106,7 +106,7 @@ int Database::index_before_time(time_t block_time) {
 // private
 int Database::index_after_time(time_t block_time) {
     for (size_t i = 0; i < block_list.size(); i++) {
-        if (block_list[i].get_time_t_start() >= block_time) return i;
+        if (block_list[i].get_time_t_end() > block_time) return i;
     }
 
     return -1;
@@ -205,6 +205,257 @@ bool Database::new_block_above(time_t block_time) {
 }
 
 // public
+bool Database::move_block_up(time_t block_time) {
+    if (extend_top_up(block_time)) {
+        extend_bottom_up(block_time-60);
+        return true;
+    }
+
+    return false;
+}
+
+// public
+bool Database::move_block_down(time_t block_time) {
+    if (extend_bottom_down(block_time)) {
+        extend_top_down(block_time);
+        return true;
+    }
+
+    return false;
+}
+
+// public
+bool Database::move_block_lateral(time_t block_time, int amt) {
+    size_t idx_this = index_at_time(block_time);
+    Block block = block_list[idx_this];
+    block_list.erase(block_list.begin() + idx_this); // the index might change, so we will
+                                                     // remove and put back in later
+
+    time_t target_block_time = block_time + amt * 24*60*60;
+
+    size_t idx_before = index_before_time(target_block_time);
+    size_t idx_after = index_after_time(target_block_time + block.get_duration());
+
+    if (idx_before == -1 || block_list[idx_before].get_time_t_end()
+                            <= target_block_time) {
+
+        if (idx_after == -1 || block_list[idx_after].get_time_t_start()
+                               >= target_block_time + block.get_duration()) {
+
+            action act = { ACT_MODIFY, -1, block }; // save the old block into action
+
+            block.set_time_t_start(target_block_time);
+            block.save_to_file();
+
+            act.index = insert_block(block);
+
+            undo_vec.push_back(act);
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+// public
+bool Database::extend_top_up(time_t block_time) {
+    int idx = index_at_time(block_time);
+    Block& block = block_list[idx]; // not a ref or pointer
+
+    time_t prev_block_end = block.get_date_time()
+                          + 60*60*config_ptr->num({"time", "day_start_hour"})
+                          + 60*config_ptr->num({"time", "day_start_minute"});
+
+    if (idx != 0) {
+        prev_block_end = std::max(prev_block_end, block_list[idx-1].get_time_t_end());
+    }
+
+    if (block_time <= prev_block_end) return false;
+    else {
+        // check last save, if it was this block moving, we don't make a history save
+        if (undo_vec.empty()) {
+            undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
+        } else {
+            action last_act = undo_vec.back();
+            Block last_block = last_act.block;
+
+            if (last_act.type == ACT_MODIFY
+                && last_act.index == idx
+                && last_block.get_id() == block.get_id()
+                && last_block.get_title() == block.get_title()
+                && last_block.get_collapsible() == block.get_collapsible()
+                && last_block.get_important() == block.get_important()
+                && last_block.get_date_time() == block.get_date_time()
+                && last_block.get_color() == block.get_color()
+            ) {
+                // last action was also a move of this block, so lets make another save
+            } else {
+                undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
+            }
+        }
+
+        block.set_time_t_start(block.get_time_t_start() - 60);
+        block.set_duration(block.get_duration() + 60);
+
+        block.save_to_file();
+
+        return true;
+    }
+}
+// public
+bool Database::extend_top_down(time_t block_time) {
+    int idx = index_at_time(block_time);
+    Block& block = block_list[idx]; // not a ref or pointer
+    
+    if (block.get_duration() <= 60) return false;
+
+    if (undo_vec.empty()) {
+        undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
+    } else {
+        action last_act = undo_vec.back();
+        Block last_block = last_act.block;
+
+        if (last_act.type == ACT_MODIFY
+            && last_act.index == idx
+            && last_block.get_id() == block.get_id()
+            && last_block.get_title() == block.get_title()
+            && last_block.get_collapsible() == block.get_collapsible()
+            && last_block.get_important() == block.get_important()
+            && last_block.get_date_time() == block.get_date_time()
+            && last_block.get_color() == block.get_color()
+        ) {
+            // last action was also a move of this block, so lets not make another save
+        } else {
+            undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
+        }
+    }
+    
+    block.set_time_t_start(block.get_time_t_start() + 60);
+    block.set_duration(block.get_duration() - 60);
+
+    block.save_to_file();
+
+    return true;
+}
+
+// public
+bool Database::extend_bottom_up(time_t block_time) {
+    int idx = index_at_time(block_time);
+    Block& block = block_list[idx]; // not a ref or pointer
+    
+    if (block.get_duration() <= 60) return false;
+
+    if (undo_vec.empty()) {
+        undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
+    } else {
+        action last_act = undo_vec.back();
+        Block last_block = last_act.block;
+
+        if (last_act.type == ACT_MODIFY
+            && last_act.index == idx
+            && last_block.get_id() == block.get_id()
+            && last_block.get_title() == block.get_title()
+            && last_block.get_collapsible() == block.get_collapsible()
+            && last_block.get_important() == block.get_important()
+            && last_block.get_date_time() == block.get_date_time()
+            && last_block.get_color() == block.get_color()
+        ) {
+            // last action was also a move of this block, so lets not make another save
+        } else {
+            undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
+        }
+    }
+    
+    block.set_duration(block.get_duration() - 60);
+    block.save_to_file();
+
+    return true;
+}
+
+// public
+bool Database::extend_bottom_down(time_t block_time) {
+    int idx = index_at_time(block_time);
+    Block& block = block_list[idx]; // not a ref or pointer
+
+    time_t next_block_start = block.get_date_time()
+                            + 60*60*config_ptr->num({"time", "day_end_hour"})
+                            + 60*config_ptr->num({"time", "day_end_minute"});
+
+    if (idx != block_list.size()-1) {
+        next_block_start = std::min(next_block_start,
+                                    block_list[idx+1].get_time_t_start());
+    }
+
+    if (block_time + block.get_duration() >= next_block_start) return false;
+    else {
+        // check last save, if it was this block moving, we don't make a history save
+        if (undo_vec.empty()) {
+            undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
+        } else {
+            action last_act = undo_vec.back();
+            Block last_block = last_act.block;
+
+            if (last_act.type == ACT_MODIFY
+                && last_act.index == idx
+                && last_block.get_id() == block.get_id()
+                && last_block.get_title() == block.get_title()
+                && last_block.get_collapsible() == block.get_collapsible()
+                && last_block.get_important() == block.get_important()
+                && last_block.get_date_time() == block.get_date_time()
+                && last_block.get_color() == block.get_color()
+            ) {
+                // last action was also a move of this block, so lets make another save
+            } else {
+                undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
+            }
+        }
+
+        block.set_duration(block.get_duration() + 60);
+        block.save_to_file();
+
+        return true;
+    }
+}
+
+// public
+bool Database::set_block_color(time_t block_time, std::string col) {
+    int idx = index_at_time(block_time);
+    Block& block = block_list[idx];
+    
+    if (block.get_color_str() == col) return false;
+
+    undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
+    
+    block.set_color_str(col);
+    block.save_to_file();
+
+    return true;
+}
+
+// public
+void Database::block_toggle_important(time_t block_time) {
+    int idx = index_at_time(block_time);
+    Block& block = block_list[idx];
+
+    undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
+    
+    block.toggle_important();
+    block.save_to_file();
+}
+
+void Database::block_toggle_collapsible(time_t block_time) {
+    int idx = index_at_time(block_time);
+    Block& block = block_list[idx];
+
+    undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
+    
+    block.toggle_collapsible();
+    block.save_to_file();
+}
+
+// public
 std::tuple<time_t, int> Database::undo() {
     if (undo_vec.empty()) return {0, 0};
 
@@ -238,13 +489,16 @@ std::tuple<time_t, int> Database::undo_action(std::vector<struct action> *from,
     switch (act.type) {
         case ACT_MODIFY:
             block = block_list[act.index];
+            block_list.erase(block_list.begin() + act.index); // +
 
-            act.block.save_to_file();
-            block_list[act.index] = act.block;
+            act.block.save_to_file(); // overwrite old info
+            act.index = insert_block(act.block); // +
+            // block_list[act.index] = act.block; // -
 
             // so that when this is written, it has the correct old source file
             block.set_source_file(act.block.get_source_file());
             act.block = block; // everything else remains the same
+            
             to->push_back(act);
             break;
         case ACT_CREATE:

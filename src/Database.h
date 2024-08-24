@@ -12,7 +12,19 @@ public:
     void rename_block(time_t block_time, std::string new_title);
     bool new_block_below(time_t block_time); // returns whether successful or not
     bool new_block_above(time_t block_time); // returns whether successful or not
+    bool move_block_up(time_t block_time); // return success
+    bool move_block_down(time_t block_time); // return success
+    bool move_block_lateral(time_t block_time, int amt); // return success
     void remove_block(time_t block_time);
+
+    bool extend_top_up(time_t block_time);
+    bool extend_top_down(time_t block_time);
+    bool extend_bottom_up(time_t block_time);
+    bool extend_bottom_down(time_t block_time);
+
+    bool set_block_color(time_t block_time, std::string col);
+    void block_toggle_important(time_t block_time);
+    void block_toggle_collapsible(time_t block_time);
 
     std::tuple<time_t, int> undo(); // returns the time and id of the changing block
     std::tuple<time_t, int> redo();
