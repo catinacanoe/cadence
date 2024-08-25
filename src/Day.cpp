@@ -282,7 +282,8 @@ void Day::resize_heights(int total_height) {
     int empty_rows = total_height - last_end_line; // rows left empty
     int bottom_y = 0;
 
-    return; // TODO if any errors crop up this is prolly related lmfao
+    // the code below is in fact necessary, so we take a performance hit to correct errs
+    // return; // TODO if any errors crop up this is prolly related lmfao
 
     if (empty_rows < 0
      && ui_block_vec.back().top_y + ui_block_vec.back().height <= total_height) return;

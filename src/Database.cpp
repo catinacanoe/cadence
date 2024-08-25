@@ -70,7 +70,7 @@ void Database::rename_block(time_t block_time, std::string new_title) {
     block_list[idx].set_title(new_title);
     block_list[idx].save_to_file();
 
-    old_block.set_source_file(block_list[idx].get_source_file());
+    old_block.set_title(old_block.get_title());
 
     undo_vec.push_back({ ACT_MODIFY, idx, old_block });
 }
@@ -242,7 +242,9 @@ bool Database::move_block_lateral(time_t block_time, int amt) {
         if (idx_after == -1 || block_list[idx_after].get_time_t_start()
                                >= target_block_time + block.get_duration()) {
 
+            block.set_time_t_start(block.get_time_t_start()); // flag as modified
             action act = { ACT_MODIFY, -1, block }; // save the old block into action
+                                                    // NOTE: -1 will be overwritten
 
             block.set_time_t_start(target_block_time);
             block.save_to_file();
@@ -254,6 +256,10 @@ bool Database::move_block_lateral(time_t block_time, int amt) {
             return true;
         }
     }
+
+    // the condition failed, block is not moved
+    // so we have to reinsert the block into the vector
+    insert_block(block);
 
     return false;
 }
@@ -274,6 +280,9 @@ bool Database::extend_top_up(time_t block_time) {
 
     if (block_time <= prev_block_end) return false;
     else {
+        block.set_time_t_start(block.get_time_t_start());
+        block.set_duration(block.get_duration());
+
         // check last save, if it was this block moving, we don't make a history save
         if (undo_vec.empty()) {
             undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
@@ -311,6 +320,9 @@ bool Database::extend_top_down(time_t block_time) {
     
     if (block.get_duration() <= 60) return false;
 
+    block.set_time_t_start(block.get_time_t_start());
+    block.set_duration(block.get_duration());
+
     if (undo_vec.empty()) {
         undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
     } else {
@@ -346,6 +358,8 @@ bool Database::extend_bottom_up(time_t block_time) {
     Block& block = block_list[idx]; // not a ref or pointer
     
     if (block.get_duration() <= 60) return false;
+
+    block.set_duration(block.get_duration());
 
     if (undo_vec.empty()) {
         undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
@@ -390,6 +404,9 @@ bool Database::extend_bottom_down(time_t block_time) {
 
     if (block_time + block.get_duration() >= next_block_start) return false;
     else {
+
+        block.set_duration(block.get_duration());
+
         // check last save, if it was this block moving, we don't make a history save
         if (undo_vec.empty()) {
             undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
@@ -426,6 +443,8 @@ bool Database::set_block_color(time_t block_time, std::string col) {
     
     if (block.get_color_str() == col) return false;
 
+    block.set_color_str(block.get_color_str());
+
     undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
     
     block.set_color_str(col);
@@ -439,6 +458,8 @@ void Database::block_toggle_important(time_t block_time) {
     int idx = index_at_time(block_time);
     Block& block = block_list[idx];
 
+    block.set_important(block.get_important());
+
     undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
     
     block.toggle_important();
@@ -449,10 +470,82 @@ void Database::block_toggle_collapsible(time_t block_time) {
     int idx = index_at_time(block_time);
     Block& block = block_list[idx];
 
+    block.set_collapsible(block.get_collapsible());
+
     undo_vec.push_back({ ACT_MODIFY, idx, block }); // save prev state
     
     block.toggle_collapsible();
     block.save_to_file();
+}
+
+// public
+time_t Database::edit_block_source(time_t block_time) {
+    // take the block out
+    size_t idx = index_at_time(block_time);
+    Block block = block_list[idx];
+    block_list.erase(block_list.begin() + idx);
+
+    def_prog_mode();
+	endwin();
+    std::string command = block.get_source_file_str();
+    command = "xdg-open \""+command+"\"";
+	system(command.c_str());
+    // NOTE: 'block' is now inconsistent with file state
+	reset_prog_mode();
+
+    // put the edited block in
+    Block new_block = Block(block.get_source_file(), config_ptr);
+    int new_idx = insert_block(new_block); // reinsert the new edited block
+
+    if (block != new_block) {
+        block.set_all_modified(); // we don't know what was modified, just flag all
+        undo_vec.push_back({ ACT_MODIFY, new_idx, block }); // save *OLD* block
+    }
+    
+    return new_block.get_date_time();
+}
+
+// public
+bool Database::copy_block(Block& block, time_t target_start) {
+    tm tmp = *std::localtime(&target_start);
+    tmp.tm_hour = tmp.tm_min = tmp.tm_sec = 0;
+    time_t target_date_time = std::mktime(&tmp);
+
+    time_t prev_block_end = target_date_time +
+                           + 60*60*config_ptr->num({"time", "day_start_hour"})
+                           + 60*config_ptr->num({"time", "day_start_minute"});
+
+    time_t next_block_start = target_date_time +
+                            + 60*60*config_ptr->num({"time", "day_end_hour"})
+                            + 60*config_ptr->num({"time", "day_end_minute"});
+
+    size_t idx_before = index_before_time(target_start);
+    size_t idx_after = index_after_time(target_start + block.get_duration());
+
+    if (idx_before != -1) {
+        prev_block_end = std::max
+            (prev_block_end, block_list[idx_before].get_time_t_end());
+    }
+
+    if (idx_after != -1) {
+        next_block_start = std::min
+            (next_block_start, block_list[idx_after].get_time_t_start());
+    }
+
+    if (prev_block_end <= target_start) {
+        if (next_block_start >= target_start + block.get_duration()) {
+
+            block.set_id(fresh_id());
+            block.set_time_t_start(target_start);
+            block.save_to_file();
+
+            undo_vec.push_back({ ACT_CREATE, int(insert_block(block)), block});
+
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // public

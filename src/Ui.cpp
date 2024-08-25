@@ -180,6 +180,20 @@ bool Ui::draw_cycle() {
             else if (sequence == config.str({"keybinds", "week", "toggle_collapsible"}))
                 week.block_toggle_collapsible();
 
+            else if (sequence == config.str({"keybinds", "week", "edit_block_source"}))
+                week.edit_block_source();
+            else if (sequence == config.str({"keybinds", "week", "follow_link"}))
+                week.follow_link();
+
+            else if (sequence == config.str({"keybinds", "week", "copy_left"}))
+                week.copy_block_lateral(-1);
+            else if (sequence == config.str({"keybinds", "week", "copy_right"}))
+                week.copy_block_lateral(1);
+            else if (sequence == config.str({"keybinds", "week", "copy_down"}))
+                week.copy_block_vertical(true);
+            else if (sequence == config.str({"keybinds", "week", "copy_up"}))
+                week.copy_block_vertical(false);
+
             else if (sequence == config.str({"keybinds", "week", "undo"}))
                 week.undo();
             else if (sequence == config.str({"keybinds", "week", "redo"}))

@@ -1,6 +1,7 @@
 @document.meta
-color: gray
+color: white
 collapsible:
+link: fuhsd.schoology.com
 @end
 
 @code lua time

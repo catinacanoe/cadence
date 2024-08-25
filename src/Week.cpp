@@ -225,6 +225,63 @@ void Week::block_toggle_important() {
 }
 
 // public
+void Week::edit_block_source() {
+    if (!get_focused_day()->has_blocks()) return;
+
+    Block block = get_focused_day()->get_focused_block();
+    time_t new_date_time = database_ptr->edit_block_source(block.get_time_t_start());
+
+    reload_day(block.get_date_time());
+    reload_day(new_date_time);
+
+    // track the edited block with focus
+    focused_date_time = new_date_time;
+    set_focus_inbounds();
+    get_focused_day()->set_focus_id(block.get_id());
+}
+
+// public
+void Week::follow_link() {
+    if (!get_focused_day()->has_blocks()) return;
+
+    get_focused_day()->get_focused_block().follow_link();
+}
+
+void Week::copy_block_lateral(int amt) {
+    if (!get_focused_day()->has_blocks()) return;
+    Block block = get_focused_day()->get_focused_block();
+
+    time_t target_start = block.get_time_t_start() + amt*24*60*60;
+
+    if (database_ptr->copy_block(block, target_start)) {
+        reload_day(block.get_date_time());
+        focused_date_time = block.get_date_time();
+        set_focus_inbounds();
+        get_focused_day()->set_focus_id(block.get_id());
+    }
+}
+
+void Week::copy_block_vertical(bool dir_down) {
+    if (!get_focused_day()->has_blocks()) return;
+    Block block = get_focused_day()->get_focused_block();
+
+    time_t target_start;
+
+    if (dir_down) {
+        target_start = block.get_time_t_end();
+    } else {
+        target_start = block.get_time_t_start() - block.get_duration();
+    }
+
+    if (database_ptr->copy_block(block, target_start)) {
+        reload_day(block.get_date_time());
+        focused_date_time = block.get_date_time();
+        set_focus_inbounds();
+        get_focused_day()->set_focus_id(block.get_id());
+    }
+}
+
+// public
 void Week::reload_all() {
     std::vector<time_t> date_times;
 

@@ -2,6 +2,9 @@
 
 #include "Block.h"
 
+#include <boost/algorithm/string.hpp>
+#include <ncursesw/ncurses.h>
+
 #include <random>
 #include <tuple>
 
@@ -25,6 +28,9 @@ public:
     bool set_block_color(time_t block_time, std::string col);
     void block_toggle_important(time_t block_time);
     void block_toggle_collapsible(time_t block_time);
+    time_t edit_block_source(time_t block_time);
+
+    bool copy_block(Block& block, time_t target_start);
 
     std::tuple<time_t, int> undo(); // returns the time and id of the changing block
     std::tuple<time_t, int> redo();

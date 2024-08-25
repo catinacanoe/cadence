@@ -120,16 +120,25 @@ void Block::init_field(std::string name, std::string contents, std::string error
         important = true;
     } else if (name == "link") {
         link = contents;
+
         if (contents == "") {
             link_type = LINK_NA;
-        } else if (contents.find("http://") == 0 || contents.find("https://") == 0) {
-            link_type = LINK_HTTP;
         } else {
             try {
                 std::stoi(contents);
                 link_type = LINK_TASK;
             } catch (const std::exception& e) {
-                link_type = LINK_FILE;
+                std::string alt_contents = std::regex_replace
+                    (contents, std::regex("^~"), getenv("HOME"));
+
+                if (std::filesystem::is_regular_file(contents)) {
+                    link_type = LINK_FILE;
+                } else if (std::filesystem::is_regular_file(alt_contents)) {
+                    link_type = LINK_FILE;
+                    link = alt_contents;
+                } else {
+                    link_type = LINK_HTTP;
+                }
             }
         }
     } else if (name == "start") {
@@ -238,12 +247,44 @@ void Block::set_source_file(std::filesystem::path newfile) {
 void Block::delete_file() {
     std::remove(source_file.c_str());
     source_file = "";
+    set_all_modified();
+}
+
+// public
+void Block::set_all_modified() {
     for (size_t i = 0; i < 7; i++) modified[i] = true;
 }
 
 // public
+void Block::follow_link() const {
+
+    switch(link_type) {
+        case LINK_NA: break;
+        case LINK_FILE: {
+            def_prog_mode();
+            endwin();
+
+            std::string cmd = "xdg-open \""+link+"\"";
+            system(cmd.c_str());
+
+            reset_prog_mode();
+            break;
+        }
+        case LINK_HTTP: {
+            std::string cmd = "browse \""+link+"\"";
+            system(cmd.c_str());
+            break;
+        }
+        case LINK_TASK:
+            // TODO once task manager is implemented
+            break;
+    }
+
+}
+
+// public
 void Block::save_to_file() {
-    if (modified[FLD_TITLE]) {
+    if (modified[FLD_TITLE] || modified[FLD_ID]) {
         if (source_file.string() == "") {
             source_file = save_path + "/TMPFILE.norg";
             std::ofstream tmp_ofstream(source_file);
@@ -259,11 +300,18 @@ void Block::save_to_file() {
 
         std::filesystem::path new_file = save_path + "/"
                                        + title + "." + std::to_string(id) + ".norg";
-        std::rename(source_file.string().c_str(), new_file.string().c_str());
+
+        if (modified[FLD_ID]) { // means a copy was made and so we leave old file intact
+            std::filesystem::copy(source_file, new_file);
+        } else {
+            std::rename(source_file.string().c_str(), new_file.string().c_str());
+        }
+
         source_file = new_file;
         error_str = "block in file " + source_file.string();
 
         modified[FLD_TITLE] = false;
+        modified[FLD_ID] = false;
     }
 
     std::vector<std::string> file_vec;
@@ -500,6 +548,12 @@ void Block::set_title(std::string new_title) {
     title_integrity(title);
 }
 
+void Block::set_id(int new_id) {
+    id = new_id;
+    modified[FLD_ID] = true;
+    id_integrity(id);
+}
+
 void Block::set_time_t_start(time_t new_start) {
     t_start = *std::localtime(&new_start);
     modified[FLD_START] = true;
@@ -538,3 +592,16 @@ void Block::set_collapsible(bool coll) {
     collapsible = coll;
     modified[FLD_COLLAPSIBLE] = true;
 }
+
+bool operator==(const Block& l, const Block& r) {
+    return l.get_time_t_start() == r.get_time_t_start()
+    && l.get_time_t_end()   == r.get_time_t_end()
+    && l.get_id()           == r.get_id()
+    && l.get_title()        == r.get_title()
+    && l.get_collapsible()  == r.get_collapsible()
+    && l.get_important()    == r.get_important()
+    && l.get_color()        == r.get_color()
+    && l.get_source_file()  == r.get_source_file();
+}
+
+bool operator!=(const Block& l, const Block& r) { return !(l == r); }

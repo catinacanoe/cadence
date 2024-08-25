@@ -67,6 +67,11 @@ public:
 
     void block_toggle_important();
     void block_toggle_collapsible();
+    void edit_block_source();
+    void follow_link();
+
+    void copy_block_lateral(int amt);
+    void copy_block_vertical(bool dir_down);
 
     void undo();
     void redo();

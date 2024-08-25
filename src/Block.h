@@ -4,11 +4,13 @@
 
 #include <vector>
 #include <filesystem>
+#include <ncursesw/ncurses.h>
 #include <boost/algorithm/string/trim.hpp>
 #include <ctime>
 #include <fstream>
 #include <iostream>
 #include <cstdio>
+#include <regex>
 
 class Block {
 private:
@@ -16,10 +18,10 @@ private:
     std::string error_str; // the intro to all errors
     std::string save_path;
     
-    const int field_count = 7; // the number of fields
-    bool modified[7]; // keeping track of which fields have been modified
-    enum en_fields { FLD_TITLE, FLD_LINK, FLD_COLOR, FLD_COLLAPSIBLE, FLD_IMPORTANT,
-                     FLD_START, FLD_DURATION };
+    const int field_count = 8; // the number of fields
+    bool modified[8]; // keeping track of which fields have been modified
+    enum en_fields { FLD_ID, FLD_TITLE, FLD_LINK, FLD_COLOR, FLD_COLLAPSIBLE,
+                     FLD_IMPORTANT, FLD_START, FLD_DURATION };
     
     enum en_link_type { LINK_NA, LINK_FILE, LINK_HTTP, LINK_TASK };
     std::string link; // can be "", a file path, http link, or an id of a task
@@ -87,6 +89,9 @@ public:
 
     void save_to_file(); // if the current fields don't match the savefile, update it
     void delete_file();
+    void set_all_modified();
+
+    void follow_link() const; // open the link
     
     std::string get_t_start_str() const; // start time as a formatted date string
     std::string get_t_end_hour_str() const; // hour of day of end time
@@ -108,6 +113,7 @@ public:
     std::filesystem::path get_source_file() const;
 
     void set_title(std::string new_title);
+    void set_id(int new_id);
     void set_time_t_start(time_t new_start);
     void set_duration(time_t new_duration);
     void set_source_file(std::filesystem::path newfile);
@@ -120,6 +126,9 @@ public:
     
     void integrity_check() const; // check that all field values make sense
     
+    friend bool operator==(const Block& l, const Block& r);
+    friend bool operator!=(const Block& l, const Block& r);
+
     Block& operator=(const Block& other) {
         if (this != &other) {
             title = other.title;

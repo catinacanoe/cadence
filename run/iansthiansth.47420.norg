@@ -1,8 +1,8 @@
 @document.meta
-color: white
+color: green
 @end
 
 @code lua time
-start = 06:17~23.08.2024
 duration = 0:30
+start = 06:00~23.08.2024
 @end
