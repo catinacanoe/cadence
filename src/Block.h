@@ -13,6 +13,83 @@
 #include <regex>
 
 class Block {
+public:
+    enum en_link_type { LINK_NA, LINK_FILE, LINK_HTTP, LINK_TASK };
+
+    Block(std::filesystem::path savefile, Config* cfg_ptr);
+    Block(Config* cfg_ptr, int id_); // id is the only necessary field
+    Block(const Block& other);
+    Block();
+
+    void dump_info() const; // just a debug function
+
+    void save_to_file(); // if the current fields don't match the savefile, update it
+    void delete_file();
+    void set_all_modified();
+
+    bool follow_link() const; // open the link
+    
+    std::string get_t_start_str() const; // start time as a formatted date string
+    std::string get_t_end_hour_str() const; // hour of day of end time
+    std::string get_t_start_hour_str() const; // hour of day of start time
+    std::string get_duration_str() const; // start time as a formatted date string
+    std::string get_color_str() const; // color in the string name
+    std::string get_source_file_str() const; // the source file string
+    
+    struct tm get_t_start() const;
+    time_t get_time_t_start() const;
+    time_t get_time_t_end() const;
+    int get_id() const;
+    std::string get_title() const;
+    bool get_collapsible() const;
+    bool get_important() const;
+    time_t get_duration() const;
+    time_t get_date_time() const;
+    int get_color() const;
+    std::filesystem::path get_source_file() const;
+    std::string get_link() const;
+    en_link_type get_link_type() const;
+
+    void set_title(std::string new_title);
+    void set_id(int new_id);
+    void set_time_t_start(time_t new_start);
+    void set_duration(time_t new_duration);
+    void set_source_file(std::filesystem::path newfile);
+    void set_color_str(std::string col);
+    void set_important(bool imp);
+    void set_collapsible(bool coll);
+
+    void toggle_important();
+    void toggle_collapsible();
+    
+    void integrity_check() const; // check that all field values make sense
+    
+    friend bool operator==(const Block& l, const Block& r);
+    friend bool operator!=(const Block& l, const Block& r);
+
+    Block& operator=(const Block& other) {
+        if (this != &other) {
+            title = other.title;
+            error_str = other.error_str;
+            link = other.link;
+            link_type = other.link_type;
+            id = other.id;
+            group = other.group;
+            color = other.color;
+            collapsible = other.collapsible;
+            important = other.important;
+            t_start = other.t_start;
+            duration = other.duration;
+            source_file = other.source_file;
+            hour_format = other.hour_format;
+            parse_format = other.parse_format;
+            save_path = other.save_path;
+
+            for (int i = 0; i < field_count; i++) modified[i] = other.modified[i];
+        }
+        return *this;
+    }
+
 private:
     std::string title; // the title of the task (brief blurb in the ui)
     std::string error_str; // the intro to all errors
@@ -23,7 +100,6 @@ private:
     enum en_fields { FLD_ID, FLD_TITLE, FLD_LINK, FLD_COLOR, FLD_COLLAPSIBLE,
                      FLD_IMPORTANT, FLD_START, FLD_DURATION };
     
-    enum en_link_type { LINK_NA, LINK_FILE, LINK_HTTP, LINK_TASK };
     std::string link; // can be "", a file path, http link, or an id of a task
     en_link_type link_type; // the type of link we have from the above options
 
@@ -78,77 +154,4 @@ private:
     void group_integrity(int val) const;
     void color_integrity(int val) const;
     void source_file_integrity(std::filesystem::path val) const;
-
-public:
-    Block(std::filesystem::path savefile, Config* cfg_ptr);
-    Block(Config* cfg_ptr, int id_); // id is the only necessary field
-    Block(const Block& other);
-    Block();
-
-    void dump_info() const; // just a debug function
-
-    void save_to_file(); // if the current fields don't match the savefile, update it
-    void delete_file();
-    void set_all_modified();
-
-    void follow_link() const; // open the link
-    
-    std::string get_t_start_str() const; // start time as a formatted date string
-    std::string get_t_end_hour_str() const; // hour of day of end time
-    std::string get_t_start_hour_str() const; // hour of day of start time
-    std::string get_duration_str() const; // start time as a formatted date string
-    std::string get_color_str() const; // color in the string name
-    std::string get_source_file_str() const; // the source file string
-    
-    struct tm get_t_start() const;
-    time_t get_time_t_start() const;
-    time_t get_time_t_end() const;
-    int get_id() const;
-    std::string get_title() const;
-    bool get_collapsible() const;
-    bool get_important() const;
-    time_t get_duration() const;
-    time_t get_date_time() const;
-    int get_color() const;
-    std::filesystem::path get_source_file() const;
-
-    void set_title(std::string new_title);
-    void set_id(int new_id);
-    void set_time_t_start(time_t new_start);
-    void set_duration(time_t new_duration);
-    void set_source_file(std::filesystem::path newfile);
-    void set_color_str(std::string col);
-    void set_important(bool imp);
-    void set_collapsible(bool coll);
-
-    void toggle_important();
-    void toggle_collapsible();
-    
-    void integrity_check() const; // check that all field values make sense
-    
-    friend bool operator==(const Block& l, const Block& r);
-    friend bool operator!=(const Block& l, const Block& r);
-
-    Block& operator=(const Block& other) {
-        if (this != &other) {
-            title = other.title;
-            error_str = other.error_str;
-            link = other.link;
-            link_type = other.link_type;
-            id = other.id;
-            group = other.group;
-            color = other.color;
-            collapsible = other.collapsible;
-            important = other.important;
-            t_start = other.t_start;
-            duration = other.duration;
-            source_file = other.source_file;
-            hour_format = other.hour_format;
-            parse_format = other.parse_format;
-            save_path = other.save_path;
-
-            for (int i = 0; i < field_count; i++) modified[i] = other.modified[i];
-        }
-        return *this;
-    }
 };

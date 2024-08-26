@@ -1,0 +1,9 @@
+@document.meta
+color: red
+link: ~/dox/wiki/fitness/exercises.norg
+@end
+
+@code lua time
+duration = 1:15
+start = 15:30~28.08.2024
+@end

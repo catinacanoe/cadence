@@ -38,7 +38,7 @@ Block::Block(std::filesystem::path savefile, Config* cfg_ptr) {
 Block::Block(Config* cfg_ptr, int id_) {
     title = cfg_ptr->str({"ui", "boxdrawing", "highlight_fill"});
     error_str = "block initialized from scratch";
-    for (size_t i = 0; i < 7; i++) modified[i] = false;
+    for (size_t i = 0; i < field_count; i++) modified[i] = false;
     link = "";
     link_type = LINK_NA;
     id = id_;
@@ -62,7 +62,7 @@ Block::Block(const Block& other) {
 }
 
 Block::Block() {
-    for (size_t i = 0; i < 7; i++) modified[i] = false;
+    for (size_t i = 0; i < field_count; i++) modified[i] = false;
     parse_format = hour_format = title = error_str = link = "";
     link_type = LINK_NA;
     id = group = color = duration = 0;
@@ -252,14 +252,18 @@ void Block::delete_file() {
 
 // public
 void Block::set_all_modified() {
-    for (size_t i = 0; i < 7; i++) modified[i] = true;
+    bool save = modified[FLD_ID];
+
+    for (size_t i = 0; i < field_count; i++) modified[i] = true;
+
+    modified[FLD_ID] = save;
 }
 
 // public
-void Block::follow_link() const {
+bool Block::follow_link() const {
 
     switch(link_type) {
-        case LINK_NA: break;
+        case LINK_NA: return false; break;
         case LINK_FILE: {
             def_prog_mode();
             endwin();
@@ -280,6 +284,7 @@ void Block::follow_link() const {
             break;
     }
 
+    return true;
 }
 
 // public
@@ -525,6 +530,8 @@ bool Block::get_important() const { return important; }
 time_t Block::get_duration() const { return duration; }
 int Block::get_color() const { return color; }
 std::filesystem::path Block::get_source_file() const { return source_file; }
+std::string Block::get_link() const { return link; }
+Block::en_link_type Block::get_link_type() const { return link_type; }
 
 time_t Block::get_time_t_start() const {
     struct tm copy = t_start;
@@ -536,6 +543,7 @@ time_t Block::get_date_time() const {
     copy.tm_hour = copy.tm_min = copy.tm_sec = 0;
     return std::mktime(&copy);
 }
+
 
 time_t Block::get_time_t_end() const { return get_time_t_start() + duration; }
 

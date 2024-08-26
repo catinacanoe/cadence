@@ -235,30 +235,57 @@ bool Ui::draw_cycle() {
     return false;
 }
 
-// TODO eventually make this similar to Day::top_bar to handle small widths
 void Ui::draw_bottom_bar(int height, int width) {
-    std::string status = "";
-    int status_col = 0;
+    std::string str_status, str_link, str_keys;
+
+    str_status = "";
+    int col_status = 0;
 
     switch(current_mode) {
-        case MD_WEEK:        status = " NORMAL "; status_col = 7+16; break;
-        case MD_WEEK_RENAME: status = " RENAME "; status_col = 5+16; break;
+        case MD_WEEK:
+            str_status = " NORMAL ";
+            col_status = config.num({"ui", "colors", "status_normal"});
+            break;
+        case MD_WEEK_RENAME:
+            str_status = " RENAME ";
+            col_status = config.num({"ui", "colors", "status_rename"});
+            break;
     }
+
+    str_keys = " " + key_sequence;
+
+    str_link = week.get_current_link();
+    if (!str_link.empty()) str_link = " "+str_link+" ";
+
+    str_status = str_status.substr(0, width);
+    str_keys   = str_keys  .substr(0, width);
+    str_link   = str_link  .substr(0, width);
+
+    int col_keys = 8;
+    int col_link = week.get_current_link_col();
 
     attron(A_BOLD);
 
-    attron(COLOR_PAIR(8));
+    // fill the bottom with black color
+    attron(COLOR_PAIR(col_keys));
     std::string spaces(width, ' ');
     mvprintw(height - 1, 0, "%s", spaces.c_str());
-    attroff(COLOR_PAIR(8));
+    attroff(COLOR_PAIR(col_keys));
 
-    attron(COLOR_PAIR(status_col));
-    mvprintw(height - 1, 0, "%s", status.c_str());
-    attroff(COLOR_PAIR(status_col));
+    // print the current link
+    attron(COLOR_PAIR(col_link));
+    mvprintw(height - 1, width - str_link.size(), "%s", str_link.c_str());
+    attroff(COLOR_PAIR(col_link));
 
-    attron(COLOR_PAIR(8));
-    mvprintw(height - 1, status.size() + 1, "%s", key_sequence.c_str());
-    attroff(COLOR_PAIR(8));
+    // print key sequence
+    attron(COLOR_PAIR(col_keys));
+    mvprintw(height - 1, str_status.size(), "%s", str_keys.c_str());
+    attroff(COLOR_PAIR(col_keys));
+
+    // write status
+    attron(COLOR_PAIR(col_status));
+    mvprintw(height - 1, 0, "%s", str_status.c_str());
+    attroff(COLOR_PAIR(col_status));
 
     attroff(A_BOLD);
 }

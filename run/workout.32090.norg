@@ -1,0 +1,9 @@
+@document.meta
+color: red
+link: 1234
+@end
+
+@code lua time
+start = 15:30~27.08.2024
+duration = 1:15
+@end

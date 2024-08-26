@@ -1,6 +1,6 @@
 @document.meta
-color: red
 important:
+color: aqua
 @end
 
 @code lua time

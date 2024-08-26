@@ -244,7 +244,10 @@ void Week::edit_block_source() {
 void Week::follow_link() {
     if (!get_focused_day()->has_blocks()) return;
 
-    get_focused_day()->get_focused_block().follow_link();
+    if(!get_focused_day()->get_focused_block().follow_link()) {
+        // if there is no link, just edit source
+        edit_block_source();
+    }
 }
 
 void Week::copy_block_lateral(int amt) {
@@ -343,6 +346,27 @@ void Week::remove_block() {
 
     database_ptr->remove_block(get_focused_day()->get_focus_time_start());
     reload_day(focused_date_time);
+}
+
+// public
+std::string Week::get_current_link() {
+    if (!get_focused_day()->has_blocks()) return "";
+
+    return get_focused_day()->get_focused_block().get_link();
+}
+
+// public
+int Week::get_current_link_col() {
+    if (!get_focused_day()->has_blocks()) return 0;
+
+    Block::en_link_type type = get_focused_day()->get_focused_block().get_link_type();
+
+    switch(type) {
+        case Block::LINK_HTTP: return config_ptr->num({"ui", "colors", "link_http"}); break;
+        case Block::LINK_TASK: return config_ptr->num({"ui", "colors", "link_task"}); break;
+        case Block::LINK_FILE: return config_ptr->num({"ui", "colors", "link_file"}); break;
+        default:               return 0; break;
+    }
 }
 
 // private

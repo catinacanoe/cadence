@@ -73,6 +73,9 @@ public:
     void copy_block_lateral(int amt);
     void copy_block_vertical(bool dir_down);
 
+    std::string get_current_link();
+    int get_current_link_col();
+
     void undo();
     void redo();
 

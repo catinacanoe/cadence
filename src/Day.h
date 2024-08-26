@@ -22,7 +22,6 @@ public:
     int get_focus_line(); // get the currently focused line (approx)
     int get_focus();
 
-
     bool has_blocks();
 
     Block get_focused_block();

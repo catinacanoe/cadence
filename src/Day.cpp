@@ -33,7 +33,7 @@ void Day::draw(int height, int width, int top_y, int left_x, bool focused) {
 
     // draw the vertical rails bounding the day
     attron(COLOR_PAIR(config_ptr->num({"ui", "colors", "background"})));
-    custom_box(height, width, top_y, left_x, BOX_BACKGROUND, false);
+    custom_box(height, width, top_y, left_x, BOX_BACKGROUND, focused);
     attroff(COLOR_PAIR(config_ptr->num({"ui", "colors", "background"})));
 
     draw_top_line(width, top_y, left_x, focused);
@@ -56,17 +56,28 @@ void Day::draw_top_line(int width, int top_y, int left_x, bool focused) {
     std::string day_str = get_day_str();
     std::string date_str = get_date_str();
 
-    if (focused)
-        attron(COLOR_PAIR(config_ptr->num({"ui", "colors", "focus"})));
+    int color;
+    if (rel_str == config_ptr->str({"ui", "relative_time", "today"}))
+        color = config_ptr->num({"ui", "colors", "today"});
     else if (rel_str != "")
-        attron(COLOR_PAIR(config_ptr->num({"ui", "colors", "relative"})));
+        color = config_ptr->num({"ui", "colors", "relative"});
+    else
+        color = -1;
+
+    if (color != -1) {
+        attron(COLOR_PAIR(color));
+        if (focused) attron(A_BOLD);
+    }
+    
+    std::string ch_spacer = " ";
+    std::string spacer = "";
 
     if (rel_str == "") {
         int spacer_2 = width - (day_str.size() + date_str.size());
         int spacer_1 = width - date_str.size();
 
         if (spacer_2 > 0) {
-            std::string spacer(spacer_2, ' ');
+            for (int i = 0; i < spacer_2; i++) spacer += ch_spacer;
             mvprintw(top_y, left_x, "%s", (day_str + spacer + date_str).c_str());
         } else if (spacer_1 > 0) {
             mvprintw(top_y, left_x + spacer_1, "%s", date_str.c_str());
@@ -79,10 +90,10 @@ void Day::draw_top_line(int width, int top_y, int left_x, bool focused) {
         int spacer_1 = width - date_str.size();
 
         if (spacer_3 > 0) {
-            std::string spacer(spacer_3, ' ');
+            for (int i = 0; i < spacer_3; i++) spacer += ch_spacer;
             mvprintw(top_y, left_x, "%s", (rel_str + spacer + day_str + " " + date_str).c_str());
         } else if (spacer_2 > 0) {
-            std::string spacer(spacer_2, ' ');
+            for (int i = 0; i < spacer_2; i++) spacer += ch_spacer;
             mvprintw(top_y, left_x, "%s", (rel_str + spacer + date_str).c_str());
         } else if (spacer_1 > 0) {
             mvprintw(top_y, left_x + spacer_1, "%s", date_str.c_str());
@@ -91,10 +102,10 @@ void Day::draw_top_line(int width, int top_y, int left_x, bool focused) {
         }
     }
 
-    if (focused)
-        attroff(COLOR_PAIR(config_ptr->num({"ui", "colors", "focus"})));
-    else if (rel_str != "")
-        attroff(COLOR_PAIR(config_ptr->num({"ui", "colors", "relative"})));
+    if (color != -1) {
+        attroff(COLOR_PAIR(color));
+        if (focused) attroff(A_BOLD);
+    }
 }
 
 // private
@@ -108,13 +119,15 @@ void Day::draw_cursor(int top_y, int x_pos, bool focused) {
     else if (dec_3 == 1) character = "🬋";
     else if (dec_3 == 2) character = "🬭";
 
-    if (focused) attron(COLOR_PAIR(config_ptr->num({"ui", "colors", "focus"})));
-    else attron(COLOR_PAIR(config_ptr->num({"ui", "colors", "relative"})));
+    int color = config_ptr->num({"ui", "colors", "cursor"});
 
+    if (color == -1) {
+        color = config_ptr->num({"ui", "colors", "today"});
+    }
+
+    attron(COLOR_PAIR(color));
     mvprintw(top_y + i_line, x_pos, "%s", character.c_str());
-
-    if (focused) attroff(COLOR_PAIR(config_ptr->num({"ui", "colors", "focus"})));
-    else attroff(COLOR_PAIR(config_ptr->num({"ui", "colors", "relative"})));
+    attroff(COLOR_PAIR(color));
 }
 
 // private
@@ -125,12 +138,14 @@ void Day::draw_ui_block(struct ui_block uiblock,
         left_x++;
     }
 
-    attron(COLOR_PAIR(uiblock.block.get_color()));
+    int color;
+    color = uiblock.block.get_color();
+
+    attron(COLOR_PAIR(color));
+    // if (focused) attron(A_BOLD);
+
     custom_box(height, width, top_y, left_x,
                uiblock.block.get_important()? BOX_IMPORTANT : BOX_NORMAL, focused);
-    attroff(COLOR_PAIR(uiblock.block.get_color()));
-
-    if (focused) attron(COLOR_PAIR(config_ptr->num({"ui", "colors", "focus"})));
 
     std::string hour = uiblock.block.get_t_start_hour_str();
     mvprintw(top_y, left_x + 1, "%s", hour.c_str());
@@ -146,7 +161,8 @@ void Day::draw_ui_block(struct ui_block uiblock,
 
     draw_ui_block_title(uiblock, height - 2, left_x + 2, top_y + 1);
 
-    if (focused) attroff(COLOR_PAIR(config_ptr->num({"ui", "colors", "focus"})));
+    attroff(COLOR_PAIR(color));
+    // if (focused) attroff(A_BOLD);
 }
 
 // private
@@ -566,6 +582,11 @@ void Day::custom_box(int height, int width, int top_y, int left_x, en_box_type t
     fill = filled ? config_ptr->str({"ui", "boxdrawing", "highlight_fill"})
                   : config_ptr->str({"ui", "boxdrawing", type_id+"_fill"});
 
+    if (type == BOX_BACKGROUND && filled)
+        fill = " ";
+    else if (filled)
+        tl = tr = bl = br = hz = vr = fill;
+
     std::string horizontal = "";
     for (int i = 0; i < width - 2; i++) horizontal += hz;
     std::string top = tl + horizontal + tr;
@@ -575,7 +596,12 @@ void Day::custom_box(int height, int width, int top_y, int left_x, en_box_type t
 
     for (int i = 1; i < height - 1; i++) {
         std::string line = vr;
-        for (int j = 1; j < width - 1; j++) line += fill;
+        for (int j = 1; j < width - 1; j++) {
+            if (type == BOX_BACKGROUND && filled && (i+j)%2 == 0)
+                line += config_ptr->str({"ui", "boxdrawing", "background_focus_fill"});
+            else
+                line += fill;
+        }
         line += vr;
 
         mvprintw(top_y + i, left_x, "%s", line.c_str());
